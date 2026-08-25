@@ -9,6 +9,13 @@ import com.playtheatria.shopdb.services.ApiKeyValidator;
 import com.playtheatria.shopdb.services.ApiUserProvisioner;
 import com.playtheatria.shopdb.services.ChestShopIngestService;
 import com.playtheatria.shopdb.services.RegionLogicService;
+import com.playtheatria.shopdb.updater.EventBuffer;
+import com.playtheatria.shopdb.updater.ShopDBClient;
+import com.playtheatria.shopdb.updater.ShopDBCommands;
+import com.playtheatria.shopdb.updater.ShopDBEditCommands;
+import com.playtheatria.shopdb.updater.ShopEventsListener;
+import com.playtheatria.shopdb.updater.ShopUpdater;
+import com.playtheatria.shopdb.updater.UpdaterConfig;
 import com.playtheatria.shopdb.web.ChestShopsRoute;
 import com.playtheatria.shopdb.web.HttpServerManager;
 import com.playtheatria.shopdb.web.PlayersRoute;
@@ -20,6 +27,8 @@ import java.io.File;
 public final class ShopDBPlugin extends JavaPlugin {
     private Db db;
     private HttpServerManager httpServer;
+    private EventBuffer eventBuffer;
+    private ShopUpdater shopUpdater;
 
     @Override
     public void onEnable() {
@@ -52,14 +61,63 @@ public final class ShopDBPlugin extends JavaPlugin {
                     new RegionsRoute(regions, players, shops, regionLogic, ingest, apiKeyValidator, getLogger()));
             httpServer.start();
             getLogger().info("ShopDB listening on port " + port + " (website at /, API at /api/v3).");
+
+            if (getConfig().getBoolean("updater.enabled", true)) {
+                startUpdater(port, apiKey);
+            }
         } catch (Exception e) {
             getLogger().severe("Failed to start ShopDB: " + e);
             getServer().getPluginManager().disablePlugin(this);
         }
     }
 
+    private void startUpdater(int port, String apiKey) {
+        if (getServer().getPluginManager().getPlugin("ChestShop") == null
+                || getServer().getPluginManager().getPlugin("WorldGuard") == null) {
+            getLogger().warning("ChestShop and/or WorldGuard not found - shop event updater disabled. " +
+                    "The website and API keep running.");
+            return;
+        }
+        if (apiKey == null || apiKey.isEmpty()) {
+            getLogger().warning("updater.enabled is true but api-key is empty - the updater cannot " +
+                    "authenticate against the API. Set api-key in config.yml.");
+        }
+
+        try {
+            UpdaterConfig config = new UpdaterConfig(true,
+                    getConfig().getInt("updater.interval-minutes", 10),
+                    getConfig().getInt("updater.cache-size", 1000),
+                    "http://127.0.0.1:" + port + "/api/v3/",
+                    apiKey,
+                    getConfig().getBoolean("updater.log-http", true));
+
+            eventBuffer = new EventBuffer(new File(getDataFolder(), "shop_events.db"), config.cacheSize, getLogger());
+            ShopDBClient client = new ShopDBClient(config, getLogger());
+
+            getServer().getPluginManager().registerEvents(new ShopEventsListener(eventBuffer), this);
+            getCommand("shopdb").setExecutor(new ShopDBCommands(client));
+            getCommand("shopdbedit").setExecutor(new ShopDBEditCommands(eventBuffer));
+
+            shopUpdater = new ShopUpdater(this, eventBuffer, client, config, getLogger());
+            shopUpdater.startSubmitting();
+            getLogger().info("Shop event updater started (posting every " + config.intervalMinutes + " minute(s)).");
+        } catch (Exception e) {
+            getLogger().severe("Failed to start shop event updater: " + e);
+        }
+    }
+
     @Override
     public void onDisable() {
+        // Flush buffered shop events while our own HTTP server is still up.
+        if (shopUpdater != null) {
+            shopUpdater.flushNow();
+            shopUpdater.stop();
+            shopUpdater = null;
+        }
+        if (eventBuffer != null) {
+            eventBuffer.close();
+            eventBuffer = null;
+        }
         if (httpServer != null) {
             httpServer.stop();
             httpServer = null;

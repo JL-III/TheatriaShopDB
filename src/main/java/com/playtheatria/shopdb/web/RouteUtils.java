@@ -138,7 +138,11 @@ public final class RouteUtils {
     }
 
     public static String readBody(HttpExchange exchange) throws IOException {
-        try (InputStream in = exchange.getRequestBody()) {
+        // The updater gzips its request bodies (Content-Encoding: gzip).
+        String encoding = exchange.getRequestHeaders().getFirst("Content-Encoding");
+        try (InputStream raw = exchange.getRequestBody();
+             InputStream in = encoding != null && encoding.toLowerCase().contains("gzip")
+                     ? new java.util.zip.GZIPInputStream(raw) : raw) {
             return new String(in.readAllBytes(), StandardCharsets.UTF_8);
         }
     }

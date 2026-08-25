@@ -13,3 +13,16 @@ api-key: ''
 
 # SQLite database file, relative to this plugin's data folder.
 database-file: shopdb.db
+
+# The shop event updater: listens to ChestShop events (create/destroy/transaction/
+# restock), buffers them in shop_events.db, and posts them to this plugin's own API.
+# Requires the ChestShop and WorldGuard plugins and a non-empty api-key above.
+updater:
+  enabled: true
+  # How often (in minutes) buffered shop events are posted. The buffer is also
+  # flushed on server shutdown.
+  interval-minutes: 10
+  # Size of the in-memory event cache.
+  cache-size: 1000
+  # Log HTTP requests/responses made by the updater.
+  log-http: true

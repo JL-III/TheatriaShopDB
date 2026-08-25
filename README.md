@@ -1,12 +1,19 @@
 # ShopDB
 
 Paper plugin that runs the entire ShopDB stack from inside the game server —
-the same pattern as MC-Ledger. One jar in `plugins/` serves the shop browser
-website at `/` and the REST API under `/api/v3`, backed by a SQLite file in the
-plugin's data folder. No cloud services.
+the same pattern as MC-Ledger. One jar in `plugins/` does everything:
 
-The ShopDB-Updater plugin keeps posting chest shop events exactly as before —
-point its `API URI` config at `http://127.0.0.1:<port>/api/v3/`.
+- serves the shop browser website at `/` and the REST API under `/api/v3`,
+  backed by a SQLite file in the plugin's data folder;
+- listens to ChestShop events (create/destroy/transaction/restock), buffers
+  them in `shop_events.db`, and posts them to its own API on the configured
+  interval and on shutdown — the ShopDB-Updater plugin's full pipeline,
+  absorbed (requires the ChestShop and WorldGuard plugins; without them the
+  updater half disables itself and the website/API still run);
+- provides `/shopdb list|unlist <region>` and `/shopdbedit delete x y z`
+  (permission `theatria.shopdb.admin`).
+
+No cloud services, no separate updater plugin, no shell access needed.
 
 ## Build
 
