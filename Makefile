@@ -22,6 +22,15 @@ SHELL := /bin/bash
 
 RESOURCES_FRONTEND := src/main/resources/META-INF/resources
 
+# Quarkus 2.14's build tooling (ByteBuddy via Hibernate 5.6) cannot read class
+# files newer than Java 20, so the jar must be built with JDK 11-17. On macOS,
+# auto-select an installed JDK 17 via /usr/libexec/java_home; elsewhere (or if
+# no 17 is installed) the ambient JAVA_HOME must point at a JDK 11-17.
+JAVA17_HOME := $(shell /usr/libexec/java_home -v 17 2>/dev/null)
+ifneq ($(JAVA17_HOME),)
+export JAVA_HOME := $(JAVA17_HOME)
+endif
+
 .DEFAULT_GOAL := build
 .PHONY: build frontend package clean clean-frontend java help
 
@@ -34,6 +43,7 @@ frontend:
 
 ## package: Package the server uber-jar (expects a staged frontend)
 package:
+	@echo "==> Building with JAVA_HOME=$${JAVA_HOME:-<unset>}"
 	$(MVN) clean package
 
 ## clean: Remove Maven and frontend build artifacts

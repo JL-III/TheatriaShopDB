@@ -20,7 +20,10 @@ frontend bundle comes from `frontend/.env.production` — update it when the
 deployment host changes, or override per-build with
 `REACT_APP_BACKEND=<url> make build`.
 
-Toolchain: JDK 11–17 for Maven/Quarkus; Node is pinned via `.tool-versions`
+Toolchain: JDK 11–17 for building and running (Quarkus 2.14's tooling cannot
+parse newer class files — on macOS the Makefile auto-selects an installed
+JDK 17 via `/usr/libexec/java_home`, so the ambient JDK doesn't matter; on
+Linux point `JAVA_HOME` at a JDK 11–17). Node is pinned via `.tool-versions`
 (asdf) — react-scripts 4 needs a Node from that era. `make help` lists all
 targets; `mvn package` alone builds an API-only jar without the website.
 
