@@ -19,6 +19,10 @@
         <quarkus.platform.group-id>io.quarkus</quarkus.platform.group-id>
         <quarkus.platform.version>2.14.3.Final</quarkus.platform.version>
         <surefire-plugin.version>3.0.0-M7</surefire-plugin.version>
+        <quarkus.package.type>uber-jar</quarkus.package.type>
+        <quarkus.datasource.db-kind>other</quarkus.datasource.db-kind>
+        <quarkus.datasource.jdbc.driver>org.sqlite.JDBC</quarkus.datasource.jdbc.driver>
+        <quarkus.hibernate-orm.dialect>org.sqlite.hibernate.dialect.SQLiteDialect</quarkus.hibernate-orm.dialect>
     </properties>
     <dependencyManagement>
         <dependencies>
@@ -32,10 +36,6 @@
         </dependencies>
     </dependencyManagement>
     <dependencies>
-        <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-amazon-lambda-rest</artifactId>
-        </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
             <artifactId>quarkus-resteasy</artifactId>
@@ -62,7 +62,17 @@
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-jdbc-postgresql</artifactId>
+            <artifactId>quarkus-agroal</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.45.1.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.github.gwenn</groupId>
+            <artifactId>sqlite-dialect</artifactId>
+            <version>0.1.4</version>
         </dependency>
         <dependency>
             <groupId>io.quarkus</groupId>
