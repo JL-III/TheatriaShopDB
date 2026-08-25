@@ -1,3 +1,4 @@
+import { BACKEND } from '../backend';
 import { createSlice } from '@reduxjs/toolkit';
 import { parseResponse } from '../api';
 
@@ -107,7 +108,7 @@ export const getTotalPages = (state) => state.players.totalPages;
 export const fetchPlayers = () => (dispatch, getState) => {
   const options = getState().players.options;
 
-  const url = new URL(`${process.env.REACT_APP_BACKEND}/players`);
+  const url = new URL(`${BACKEND}/players`);
   url.searchParams.append('page', options.page);
 
   if (options.name) {
@@ -144,7 +145,7 @@ export const fetchPlayerNames = () => (dispatch, getState) => {
   const options = getState().players.options;
 
   fetch(
-    `${process.env.REACT_APP_BACKEND}/players/player-names`
+    `${BACKEND}/players/player-names`
   )
     .then(parseResponse)
     .then((response) => {

@@ -9,12 +9,9 @@
 # directory is generated, not committed (see .gitignore), so it must be
 # produced before `mvn package` or the jar ships without the website.
 #
-# REACT_APP_BACKEND is baked into the bundle at build time (create-react-app
-# reads env vars statically) and must be an absolute URL — parts of the app
-# construct `new URL(...)` from it, which rejects relative paths. The default
-# comes from frontend/.env.production; set the variable to override it:
-#
-#   REACT_APP_BACKEND=https://shopdb.playtheatria.com/api/v3 ./scripts/build-frontend.sh
+# By default the site calls the API on whatever origin it was served from
+# (see frontend/src/backend.js) — no per-environment rebuilds. Setting
+# REACT_APP_BACKEND at build time overrides that with a fixed absolute URL.
 #
 set -euo pipefail
 
@@ -49,7 +46,7 @@ else
   npm --prefix "$FRONTEND_DIR" install
 fi
 
-echo "==> Building frontend production bundle (REACT_APP_BACKEND=${REACT_APP_BACKEND:-<from frontend/.env.production>})"
+echo "==> Building frontend production bundle (API: ${REACT_APP_BACKEND:-same-origin /api/v3})"
 npm --prefix "$FRONTEND_DIR" run build
 
 if [ ! -f "$BUILD_DIR/index.html" ]; then

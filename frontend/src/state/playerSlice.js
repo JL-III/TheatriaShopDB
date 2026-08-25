@@ -1,3 +1,4 @@
+import { BACKEND } from '../backend';
 import { createSlice } from '@reduxjs/toolkit';
 import { parseResponse } from '../api';
 
@@ -138,7 +139,7 @@ export const getPlayerChestShops = (state) => state.player.chestShops;
 export const fetchPlayer = (name) => (dispatch) => {
   dispatch(loading());
 
-  fetch(`${process.env.REACT_APP_BACKEND}/players/${name}`)
+  fetch(`${BACKEND}/players/${name}`)
     .then(parseResponse)
     .then((response) => {
       dispatch(loaded(response));
@@ -160,7 +161,7 @@ export const fetchPlayerRegions = (name) => (dispatch, getState) => {
   dispatch(regionsLoading());
 
   fetch(
-    `${process.env.REACT_APP_BACKEND}/players/${name}/regions?page=${page}`
+    `${BACKEND}/players/${name}/regions?page=${page}`
   )
     .then(parseResponse)
     .then((response) => {
@@ -192,7 +193,7 @@ export const fetchPlayerChestShops = (name, tradeType) => (
   dispatch(chestShopsLoading());
 
   fetch(
-    `${process.env.REACT_APP_BACKEND}/players/${name}/chest-shops?page=${page}&tradeType=${tradeType}`
+    `${BACKEND}/players/${name}/chest-shops?page=${page}&tradeType=${tradeType}`
   )
     .then(parseResponse)
     .then((response) => {

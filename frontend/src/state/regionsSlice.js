@@ -1,3 +1,4 @@
+import { BACKEND } from '../backend';
 import { createSlice } from '@reduxjs/toolkit';
 import { parseResponse } from '../api';
 
@@ -118,7 +119,7 @@ export default regionsSlice.reducer;
 export const fetchRegions = () => (dispatch, getState) => {
   const options = getState().regions.options;
 
-  const url = new URL(`${process.env.REACT_APP_BACKEND}/regions`);
+  const url = new URL(`${BACKEND}/regions`);
 
   url.searchParams.append('page', options.page);
   url.searchParams.append('active', options.hideNonShopTowns);
@@ -162,7 +163,7 @@ export const fetchRegionNames = () => (dispatch, getState) => {
 
   dispatch(loadingNames());
 
-  const url = new URL(`${process.env.REACT_APP_BACKEND}/regions/region-names`);
+  const url = new URL(`${BACKEND}/regions/region-names`);
 
   if (options.server !== 'all') url.searchParams.append('server', options.server);
   url.searchParams.append('active', options.hideNonShopTowns);

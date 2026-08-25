@@ -1,3 +1,4 @@
+import { BACKEND } from '../backend';
 import { createSlice } from '@reduxjs/toolkit';
 import { parseResponse } from '../api';
 
@@ -139,7 +140,7 @@ export const getTotalPages = (state) => state.chestShops.totalPages;
 export const fetchChestShops = () => (dispatch, getState) => {
   const options = getState().chestShops.options;
 
-  const url = new URL(`${process.env.REACT_APP_BACKEND}/chest-shops`);
+  const url = new URL(`${BACKEND}/chest-shops`);
   url.searchParams.append('tradeType', options.tradeType);
   url.searchParams.append('sortBy', options.sortBy.value);
   url.searchParams.append('page', options.page);
@@ -193,7 +194,7 @@ export const fetchMaterials = () => (dispatch, getState) => {
 
   dispatch(loadingMaterials());
 
-  const url = new URL(`${process.env.REACT_APP_BACKEND}/chest-shops/material-names`)
+  const url = new URL(`${BACKEND}/chest-shops/material-names`)
 
   if (options.server !== 'all') url.searchParams.append('server', options.server);
   url.searchParams.append('tradeType', options.tradeType)

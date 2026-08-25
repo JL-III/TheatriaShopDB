@@ -18,9 +18,10 @@ Produces `target/ShopDB-<version>.jar`, ready to drop into `plugins/`.
 Requires JDK 21+ (any modern JDK works) and Node via asdf (pinned in
 `.tool-versions`; react-scripts 4 needs a Node of that era).
 
-The absolute API URL baked into the website comes from
-`frontend/.env.production` — update it when the deployment host changes, or
-override per-build with `REACT_APP_BACKEND=<url> make build`.
+The website calls the API on whatever origin it is served from (see
+`frontend/src/backend.js`), so the same jar works on an IP, a test domain, or
+the production domain with no rebuilds. `REACT_APP_BACKEND=<url> make build`
+overrides that with a fixed URL if ever needed.
 
 `mvn package` alone builds an API-only jar without the website.
 
