@@ -30,20 +30,4 @@ public class PaginatedResponse<T> {
     public List<T> getResults() {
         return results;
     }
-
-    public void setPage(int page) {
-        this.page = page;
-    }
-
-    public void setTotalPages(long totalPages) {
-        this.totalPages = totalPages;
-    }
-
-    public void setTotalElements(long totalResults) {
-        this.totalElements = totalResults;
-    }
-
-    public void setResults(List<T> results) {
-        this.results = results;
-    }
 }

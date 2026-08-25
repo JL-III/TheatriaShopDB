@@ -1,12 +1,12 @@
-# TheatriaShopDB
+# ShopDB
 
-Backend API for ShopDB. Ingests chest shop sign events from the ShopDB-Updater
-plugin and serves the shop browser API under `/api/v3`.
+Paper plugin that runs the entire ShopDB stack from inside the game server —
+the same pattern as MC-Ledger. One jar in `plugins/` serves the shop browser
+website at `/` and the REST API under `/api/v3`, backed by a SQLite file in the
+plugin's data folder. No cloud services.
 
-Runs as a single self-hosted process on the Minecraft server host — plain HTTP
-backed by a local SQLite file, following the same pattern as MC-Ledger and
-TheatriaMarket. No cloud services involved. The React frontend (in `frontend/`)
-is built into the jar and served at `/`; the API keeps its `/api/v3` prefix.
+The ShopDB-Updater plugin keeps posting chest shop events exactly as before —
+point its `API URI` config at `http://127.0.0.1:<port>/api/v3/`.
 
 ## Build
 
@@ -14,37 +14,45 @@ is built into the jar and served at `/`; the API keeps its `/api/v3` prefix.
 make build
 ```
 
-Produces `target/shopdb-<version>-runner.jar` (single runnable uber-jar
-containing the API and the website). The absolute API URL baked into the
-frontend bundle comes from `frontend/.env.production` — update it when the
-deployment host changes, or override per-build with
-`REACT_APP_BACKEND=<url> make build`.
+Produces `target/ShopDB-<version>.jar`, ready to drop into `plugins/`.
+Requires JDK 21+ (any modern JDK works) and Node via asdf (pinned in
+`.tool-versions`; react-scripts 4 needs a Node of that era).
 
-Toolchain: JDK 11–17 for building and running (Quarkus 2.14's tooling cannot
-parse newer class files — on macOS the Makefile auto-selects an installed
-JDK 17 via `/usr/libexec/java_home`, so the ambient JDK doesn't matter; on
-Linux point `JAVA_HOME` at a JDK 11–17). Node is pinned via `.tool-versions`
-(asdf) — react-scripts 4 needs a Node from that era. `make help` lists all
-targets; `mvn package` alone builds an API-only jar without the website.
+The absolute API URL baked into the website comes from
+`frontend/.env.production` — update it when the deployment host changes, or
+override per-build with `REACT_APP_BACKEND=<url> make build`.
 
-## Run
+`mvn package` alone builds an API-only jar without the website.
+
+## Configure
+
+`plugins/ShopDB/config.yml` (created on first start):
+
+- `port` — HTTP port for the website + API (default 8080).
+- `api-username` — the `users` table row whose bcrypt password hash
+  authenticates `POST /chest-shops` and `PUT`/`DELETE /regions` (the
+  updater's API key).
+- `database-file` — SQLite file name inside the plugin data folder.
+
+Seed the API user once (hash is a standard `$2a$` bcrypt of the API key):
 
 ```
-QUARKUS_DATASOURCE_JDBC_URL=jdbc:sqlite:/path/to/shopdb.db \
-QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update \
-QUARKUS_HTTP_PORT=8080 \
-SHOPDB_API_USERNAME=<api user name> \
-java -jar target/shopdb-*-runner.jar
+sqlite3 plugins/ShopDB/shopdb.db "INSERT INTO users (username, password) VALUES ('updater', '<bcrypt hash>');"
 ```
 
-- `QUARKUS_DATASOURCE_JDBC_URL` — path to the SQLite database file (created on
-  first run when `QUARKUS_HIBERNATE_ORM_DATABASE_GENERATION=update`).
-- `SHOPDB_API_USERNAME` — username of the row in the `users` table whose bcrypt
-  password hash authenticates `POST /chest-shops` (the updater's API key).
-- The server listens on `0.0.0.0`; point the ShopDB-Updater plugin's `API URI`
-  config at `http://127.0.0.1:<port>/api/v3/` when running on the same host.
+The schema matches the previous backend's PostgreSQL schema 1:1, so the
+production dump imports table-for-table (booleans as 0/1, timestamps as epoch
+millis).
 
-Note: the site uses browser-side routing (`BrowserRouter`), so a page refresh
-on a deep link (e.g. `/players/<name>`) 404s when hitting the jar directly.
-When a reverse proxy (Caddy/nginx) fronts the server for TLS, add a fallback
-rewrite of unmatched non-`/api` paths to `/index.html`.
+## Develop
+
+Run the web server without a Paper server:
+
+```
+java -cp "target/ShopDB-<version>.jar:<path-to-gson.jar>" com.playtheatria.shopdb.DevMain 8080 shopdb.db updater
+```
+
+(gson is provided by Paper at runtime, so it must be added to the classpath
+for standalone runs.)
+
+`mvn test` runs the unit tests. `make help` lists build targets.

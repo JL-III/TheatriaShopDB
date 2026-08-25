@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 #
 # Builds the React frontend and stages the production bundle into the Maven
-# resources directory so it gets packaged inside the server jar.
+# resources directory so it gets packaged inside the plugin jar.
 #
-# Quarkus serves classpath resources under META-INF/resources at the HTTP
-# root, so the staged bundle becomes the website and the REST API keeps its
-# /api/v3 prefix (see src/main/resources/application.properties). The staged
+# The plugin serves the classpath resource directory "frontend" at the HTTP
+# root (see com.playtheatria.shopdb.web.StaticFiles), so the staged bundle
+# becomes the website and the REST API keeps its /api/v3 prefix. The staged
 # directory is generated, not committed (see .gitignore), so it must be
 # produced before `mvn package` or the jar ships without the website.
 #
@@ -24,7 +24,12 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 FRONTEND_DIR="$ROOT_DIR/frontend"
 BUILD_DIR="$FRONTEND_DIR/build"
-RESOURCES_DIR="$ROOT_DIR/src/main/resources/META-INF/resources"
+RESOURCES_DIR="$ROOT_DIR/src/main/resources/frontend"
+
+# Absolute asset paths so client-side routes (e.g. /players/name) load their
+# JS/CSS correctly after a refresh; the plugin falls back to index.html for
+# unknown paths.
+export PUBLIC_URL="/"
 
 # create-react-app treats warnings as errors when CI is set, which makes the
 # build brittle. Default to a non-CI build but let callers override.
@@ -52,7 +57,7 @@ if [ ! -f "$BUILD_DIR/index.html" ]; then
   exit 1
 fi
 
-echo "==> Staging bundle into src/main/resources/META-INF/resources"
+echo "==> Staging bundle into src/main/resources/frontend"
 rm -rf "$RESOURCES_DIR"
 mkdir -p "$RESOURCES_DIR"
 cp -R "$BUILD_DIR/." "$RESOURCES_DIR/"

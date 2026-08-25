@@ -1,9 +1,10 @@
-# TheatriaShopDB build orchestration.
+# ShopDB build orchestration.
 #
 # `make build` is the entry point: it builds the React frontend, stages the
-# bundle into src/main/resources/META-INF/resources (served by Quarkus at the
-# HTTP root), and packages the server uber-jar. The staged frontend resources
-# are generated (gitignored); without that step the jar serves the API only.
+# bundle into src/main/resources/frontend (served by the plugin's embedded web
+# server at the HTTP root), and packages the plugin jar. The staged frontend
+# resources are generated (gitignored); without that step the plugin serves
+# the API only.
 #
 # Frontend (mirrors MC-Ledger / TheatriaMarket): the web UI source lives in the
 # top-level frontend/ directory (create-react-app, react-scripts 4). Node is
@@ -13,37 +14,31 @@
 #
 #   REACT_APP_BACKEND=https://shopdb.playtheatria.com/api/v3 make build
 #
-# The result is target/shopdb-<version>-runner.jar — one self-contained
-# process serving the website at / and the API at /api/v3, backed by SQLite.
-# See README.md for the runtime environment variables.
+# JDK: the plugin targets Java 21 bytecode (Paper 1.21+ servers run Java 21+),
+# so build with any JDK 21 or newer — modern JDKs (21/25) work out of the box.
+#
+# The result is target/ShopDB-<version>.jar — a Paper plugin that serves the
+# website at / and the API at /api/v3 from inside the game server, backed by
+# SQLite in the plugin's data folder. Drop it into plugins/.
 
 MVN   ?= mvn
 SHELL := /bin/bash
 
-RESOURCES_FRONTEND := src/main/resources/META-INF/resources
-
-# Quarkus 2.14's build tooling (ByteBuddy via Hibernate 5.6) cannot read class
-# files newer than Java 20, so the jar must be built with JDK 11-17. On macOS,
-# auto-select an installed JDK 17 via /usr/libexec/java_home; elsewhere (or if
-# no 17 is installed) the ambient JAVA_HOME must point at a JDK 11-17.
-JAVA17_HOME := $(shell /usr/libexec/java_home -v 17 2>/dev/null)
-ifneq ($(JAVA17_HOME),)
-export JAVA_HOME := $(JAVA17_HOME)
-endif
+RESOURCES_FRONTEND := src/main/resources/frontend
 
 .DEFAULT_GOAL := build
 .PHONY: build frontend package clean clean-frontend java help
 
-## build: Build the frontend and package the server uber-jar (default target)
+## build: Build the frontend and package the plugin jar (default target)
 build: frontend package
 
 ## frontend: Build the React app and stage it into Maven resources
 frontend:
 	./scripts/build-frontend.sh
 
-## package: Package the server uber-jar (expects a staged frontend)
+## package: Package the plugin jar (expects a staged frontend)
 package:
-	@echo "==> Building with JAVA_HOME=$${JAVA_HOME:-<unset>}"
+	@echo "==> Building with JAVA_HOME=$${JAVA_HOME:-<system default>}"
 	$(MVN) clean package
 
 ## clean: Remove Maven and frontend build artifacts

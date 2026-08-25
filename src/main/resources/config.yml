@@ -1,0 +1,9 @@
+# Port the embedded HTTP server listens on (serves the website at / and the API at /api/v3).
+port: 8080
+
+# Username of the row in the `users` table whose bcrypt password hash authenticates
+# POST /chest-shops and PUT/DELETE /regions (the ShopDB-Updater plugin's API key).
+api-username: updater
+
+# SQLite database file, relative to this plugin's data folder.
+database-file: shopdb.db
