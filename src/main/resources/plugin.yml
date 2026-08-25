@@ -1,0 +1,23 @@
+name: ShopDB
+main: com.playtheatria.shopdb.ShopDBPlugin
+version: '4.0.0'
+api-version: '1.21'
+description: Self-hosted ShopDB - serves the shop browser website and API from the game server, and records chest shop events
+author: Theatria
+softdepend: [ChestShop, WorldGuard]
+
+commands:
+  shopdb:
+    description: Modify shops on ShopDB
+    usage: |
+      /<command> <list/unlist> (region)
+      /<command> reload
+  shopdbedit:
+    description: Bolt on command to edit shops that didn't get removed with worldedit chest deletions
+    usage: |
+      /<command> delete x y z
+
+permissions:
+  theatria.shopdb.admin:
+    description: Allows managing ShopDB region listings and shop deletions
+    default: op

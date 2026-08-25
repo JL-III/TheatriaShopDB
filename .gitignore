@@ -1,2 +1,6 @@
 .idea
 target/
+frontend/node_modules/
+frontend/build/
+src/main/resources/frontend/
+.DS_Store

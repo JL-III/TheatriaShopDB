@@ -1,0 +1,87 @@
+.store-icon-1,
+.store-icon-2,
+.store-icon-3,
+.store-icon-4,
+.store-icon-5,
+.store-icon-6,
+.store-icon-7 {
+  font-size: 70px;
+  padding: 13.5px;
+  color: #fff;
+  margin-right: 20px;
+  width: 67px !important;
+  height: 67px !important;
+}
+
+.store-icon-1 {
+  background-color: rgb(51, 51, 51);
+}
+
+.store-icon-2 {
+  background-color: rgb(215, 139, 20);
+}
+
+.store-icon-3 {
+  background-color: rgb(29, 96, 209);
+}
+
+.store-icon-4 {
+  background-color: rgb(38, 33, 121);
+}
+
+.store-icon-5 {
+  background-color: rgb(0, 157, 220);
+}
+
+.store-icon-6 {
+  background-color: rgb(235, 83, 9);
+}
+
+.store-icon-7 {
+  background-color: rgb(235, 83, 9);
+}
+
+#regions .ml-80,
+#player .region .ml-80 {
+  margin-left: 90px;
+}
+
+#player .region {
+  min-width: 800px;
+}
+
+@media (max-width: 900px) {
+  #player .region {
+    min-width: 100%;
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+}
+
+@media (max-width: 500px) {
+  .store-icon-1,
+  .store-icon-2,
+  .store-icon-3,
+  .store-icon-4,
+  .store-icon-5,
+  .store-icon-6,
+  .store-icon-7 {
+    font-size: 70px;
+    padding: 13.5px;
+    color: #fff;
+    margin-right: 20px;
+    width: 40px !important;
+    height: 40px !important;
+  }
+
+  #player .region {
+    margin-left: inherit;
+    margin-right: inherit;
+  }
+
+  #regions .ml-80,
+  #player .region .ml-80 {
+    margin-left: 60px;
+    margin-top: 10px;
+  }
+}

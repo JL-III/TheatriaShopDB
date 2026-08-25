@@ -1,0 +1,5 @@
+.alert-error .MuiAlert-root.MuiAlert-standardError {
+  background-color: #242526 !important;
+  color: rgba(255, 255, 255, 0.6);
+  line-height: 1.7;
+}

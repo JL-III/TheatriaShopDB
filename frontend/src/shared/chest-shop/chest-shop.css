@@ -1,0 +1,67 @@
+#chest-shops,
+#regions,
+#players {
+  font-family: 'Poppins', sans-serif;
+}
+
+#chest-shops .mc-avatar,
+#player .mc-avatar,
+#region .mc-avatar {
+  height: 67px;
+  width: 67px;
+}
+
+#chest-shops .ml-80,
+#player .chest-shop .ml-80,
+#region .chest-shop .ml-80 {
+  margin-left: 80px;
+}
+
+#chest-shops .chest-shop-description {
+  margin-left: 80px;
+}
+
+#player .chest-shop,
+#region .chest-shop {
+  min-width: 800px;
+}
+
+@media (max-width: 900px) {
+  #player .chest-shop,
+  #region .chest-shop {
+    min-width: 100%;
+    margin-left: 10px;
+    margin-right: 10px;
+  }
+}
+
+@media (max-width: 500px) {
+  #chest-shops .mc-avatar,
+  #player .chest-shop .mc-avatar,
+  #region .chest-shop .mc-avatar {
+    width: 40px;
+    height: 40px;
+  }
+
+  #chest-shops .ml-80,
+  #player .chest-shop .ml-80,
+  #region .chest-shop .ml-80 {
+    margin-left: 50px;
+  }
+
+  #player .chest-shop,
+  #region .chest-shop {
+    margin-left: inherit;
+    margin-right: inherit;
+  }
+
+  #chest-shops .chest-shop-description {
+    margin-left: 50px;
+  }
+
+  #chest-shops .copy-button,
+  #player .chest-shop .copy-button,
+  #region .chest-shop .copy-button {
+    display: none;
+  }
+}

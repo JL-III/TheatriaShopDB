@@ -1,0 +1,35 @@
+/* Override material-ui pagination styles */
+.top-pagination {
+  min-height: 40px;
+  max-height: 40px;
+}
+
+.top-pagination .MuiToolbar-gutters {
+  margin-left: 0;
+  padding-left: 0;
+}
+
+.top-pagination .MuiToolbar-root {
+  min-height: 0;
+}
+
+.top-pagination .MuiTypography-root {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.top-pagination .MuiIconButton-root {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.top-pagination .MuiIconButton-root:hover {
+  color: #6ba65e;
+}
+
+.top-pagination .MuiButtonBase-root.MuiIconButton-root {
+  padding: 8px;
+  border-radius: 5px;
+}
+
+.top-pagination .MuiButtonBase-root.MuiIconButton-root.Mui-disabled {
+  color: rgba(255, 255, 255, 0.3);
+}

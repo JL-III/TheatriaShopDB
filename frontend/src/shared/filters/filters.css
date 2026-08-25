@@ -1,0 +1,43 @@
+#filters {
+  font-family: 'Poppins', sans-serif;
+}
+
+#filters .filter {
+  max-width: 275px;
+  min-width: 275px;
+}
+
+/* Override material-ui icons */
+#filters .MuiSvgIcon-root {
+  font-size: 1rem;
+  color: #f85102;
+}
+
+/* Override material-ui labels */
+#filters .MuiTypography-root.MuiFormControlLabel-label {
+  font-size: 15px;
+}
+
+/* Override material-ui select */
+#filters .sort-by-selector {
+  width: 200px;
+}
+
+@media (max-width: 914px) {
+  #chest-shops #filters,
+  #regions #filters {
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    margin-bottom: 50px;
+  }
+
+  #filters .filter {
+    max-width: auto;
+    min-width: auto;
+  }
+
+  #filters > h3 {
+    display: none;
+  }
+}
