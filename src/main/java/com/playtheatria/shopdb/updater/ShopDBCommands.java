@@ -129,6 +129,20 @@ public class ShopDBCommands implements CommandExecutor {
         }).start();
     }
 
+    /** Region name completions for /shopdb list|unlist, filtered by prefix. */
+    public List<String> completeRegionNames(String prefix) {
+        String lower = prefix == null ? "" : prefix.toLowerCase(java.util.Locale.ROOT);
+        List<String> result = new ArrayList<>();
+        for (String name : regionManager.getRegions().keySet()) {
+            if (name.toLowerCase(java.util.Locale.ROOT).startsWith(lower)) {
+                result.add(name);
+                if (result.size() >= 50) break;
+            }
+        }
+        java.util.Collections.sort(result);
+        return result;
+    }
+
     private Set<String> uuidsToPlayerNames(Set<UUID> uuids) {
         Set<String> playerNames = new HashSet<>();
         if (uuids == null) return playerNames;

@@ -1,5 +1,7 @@
 package com.playtheatria.shopdb;
 
+import com.playtheatria.shopdb.commands.ShopDBEditRootCommand;
+import com.playtheatria.shopdb.commands.ShopDBRootCommand;
 import com.playtheatria.shopdb.database.Db;
 import com.playtheatria.shopdb.database.PlayerRepository;
 import com.playtheatria.shopdb.database.RegionRepository;
@@ -20,6 +22,7 @@ import com.playtheatria.shopdb.web.ChestShopsRoute;
 import com.playtheatria.shopdb.web.HttpServerManager;
 import com.playtheatria.shopdb.web.PlayersRoute;
 import com.playtheatria.shopdb.web.RegionsRoute;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -29,10 +32,34 @@ public final class ShopDBPlugin extends JavaPlugin {
     private HttpServerManager httpServer;
     private EventBuffer eventBuffer;
     private ShopUpdater shopUpdater;
+    private ShopEventsListener shopEventsListener;
+    private ShopDBCommands updaterCommands;
+    private ShopDBEditCommands editCommands;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
+
+        ShopDBRootCommand root = new ShopDBRootCommand(this);
+        getCommand("shopdb").setExecutor(root);
+        getCommand("shopdb").setTabCompleter(root);
+
+        ShopDBEditRootCommand edit = new ShopDBEditRootCommand(this);
+        getCommand("shopdbedit").setExecutor(edit);
+        getCommand("shopdbedit").setTabCompleter(edit);
+
+        if (!startServices()) {
+            getServer().getPluginManager().disablePlugin(this);
+        }
+    }
+
+    @Override
+    public void onDisable() {
+        stopServices();
+    }
+
+    /** Starts (or restarts) the database, web server, and updater from the current config. */
+    public synchronized boolean startServices() {
         int port = getConfig().getInt("port", 8080);
         String apiUsername = getConfig().getString("api-username", "updater");
         String apiKey = getConfig().getString("api-key", "");
@@ -65,9 +92,11 @@ public final class ShopDBPlugin extends JavaPlugin {
             if (getConfig().getBoolean("updater.enabled", true)) {
                 startUpdater(port, apiKey);
             }
+            return true;
         } catch (Exception e) {
             getLogger().severe("Failed to start ShopDB: " + e);
-            getServer().getPluginManager().disablePlugin(this);
+            stopServices();
+            return false;
         }
     }
 
@@ -94,9 +123,10 @@ public final class ShopDBPlugin extends JavaPlugin {
             eventBuffer = new EventBuffer(new File(getDataFolder(), "shop_events.db"), config.cacheSize, getLogger());
             ShopDBClient client = new ShopDBClient(config, getLogger());
 
-            getServer().getPluginManager().registerEvents(new ShopEventsListener(eventBuffer), this);
-            getCommand("shopdb").setExecutor(new ShopDBCommands(client));
-            getCommand("shopdbedit").setExecutor(new ShopDBEditCommands(eventBuffer));
+            shopEventsListener = new ShopEventsListener(eventBuffer);
+            getServer().getPluginManager().registerEvents(shopEventsListener, this);
+            updaterCommands = new ShopDBCommands(client);
+            editCommands = new ShopDBEditCommands(eventBuffer);
 
             shopUpdater = new ShopUpdater(this, eventBuffer, client, config, getLogger());
             shopUpdater.startSubmitting();
@@ -106,14 +136,20 @@ public final class ShopDBPlugin extends JavaPlugin {
         }
     }
 
-    @Override
-    public void onDisable() {
-        // Flush buffered shop events while our own HTTP server is still up.
+    /** Flushes the event buffer and stops all services. Safe to call repeatedly. */
+    public synchronized void stopServices() {
         if (shopUpdater != null) {
+            // Flush buffered shop events while our own HTTP server is still up.
             shopUpdater.flushNow();
             shopUpdater.stop();
             shopUpdater = null;
         }
+        if (shopEventsListener != null) {
+            HandlerList.unregisterAll(shopEventsListener);
+            shopEventsListener = null;
+        }
+        updaterCommands = null;
+        editCommands = null;
         if (eventBuffer != null) {
             eventBuffer.close();
             eventBuffer = null;
@@ -130,5 +166,20 @@ public final class ShopDBPlugin extends JavaPlugin {
             }
             db = null;
         }
+    }
+
+    /** Re-reads config.yml and restarts all services. Returns true on success. */
+    public synchronized boolean reloadServices() {
+        stopServices();
+        reloadConfig();
+        return startServices();
+    }
+
+    public ShopDBCommands getUpdaterCommands() {
+        return updaterCommands;
+    }
+
+    public ShopDBEditCommands getEditCommands() {
+        return editCommands;
     }
 }
