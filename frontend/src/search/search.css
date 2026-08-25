@@ -1,0 +1,57 @@
+#player .last-updated-block,
+#region .last-updated-block {
+  min-width: 315px;
+}
+
+#player .MuiTabs-flexContainer.MuiTabs-centered,
+#region .MuiTabs-flexContainer.MuiTabs-centered {
+  background-color: #171725;
+  color: rgba(255, 255, 255, 1);
+}
+
+#player .MuiTabs-indicator,
+#region .MuiTabs-indicator {
+  background-color: #f85102;
+  height: 3px;
+}
+
+#player .MuiTabPanel-root,
+#region .MuiTabPanel-root {
+  padding: 0;
+}
+
+#region .icon-lg,
+#player .icon-lg {
+  width: 100px !important;
+  height: 100px !important;
+}
+
+@media (max-width: 914px) {
+  #chest-shops .container.flex,
+  #regions .container.flex,
+  #players .container.flex,
+  #player.background > .container.flex,
+  #region.background > .container.flex {
+    display: block;
+  }
+
+  #player .last-updated-block,
+  #region .last-updated-block,
+  #region .coordinates-block {
+    width: 315px;
+    margin-bottom: 20px;
+  }
+}
+
+@media (max-width: 626px) {
+  #results-top-panel {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .item-selector,
+  .name-selector {
+    min-width: 100%;
+    max-width: 100%;
+  }
+}

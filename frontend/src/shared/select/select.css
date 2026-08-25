@@ -1,0 +1,5 @@
+#chest-shops .item-selector,
+#regions .name-selector,
+#players .name-selector {
+  width: 250px;
+}

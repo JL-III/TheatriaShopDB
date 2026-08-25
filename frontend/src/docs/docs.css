@@ -1,0 +1,48 @@
+#backdrop {
+    min-height: calc(100vh - 64px);
+    color: #fff;
+}
+
+.intro {
+    font-size: 3rem;
+    letter-spacing: 1px;
+}
+
+.title {
+    font-size: 2.5rem;
+    letter-spacing: 1px;
+}
+
+.subtitle {
+    font-size: 2rem;
+    letter-spacing: 1px;
+}
+
+.desc {
+    font-size: 1.5rem;
+    font-weight: 300;
+}
+
+.text {
+    font-size: 17px;
+    line-height: 1.7;
+    max-width: 42em;
+}
+
+.hr {
+    height: 1px;
+    background-color: #171725;
+    border: none;
+    margin-top: 40px;
+    margin-bottom: 40px;
+}
+
+.ul {
+    padding-left: 35px;
+}
+
+.code {
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 2px 8px;
+    border-radius: 5px;
+}

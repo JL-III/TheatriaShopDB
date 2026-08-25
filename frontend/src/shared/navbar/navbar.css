@@ -1,0 +1,76 @@
+#navbar {
+  font-family: 'Poppins', sans-serif;
+  font-weight: 500;
+  background-color: #171725;
+  color: #fff;
+  text-transform: uppercase;
+}
+
+#navbar,
+#navbar .container {
+  min-height: 64px;
+}
+
+#navbar #logo {
+  width: 40px;
+  height: 40px;
+}
+
+#navbar .nav-item,
+.nav-mobile-background .nav-item {
+  color: inherit;
+}
+
+#navbar .nav-item,
+#navbar .nav-item-selected,
+.nav-mobile-background .nav-item,
+.nav-mobile-background .nav-item-selected {
+  padding: 5px 15px;
+  border-bottom: 1px solid transparent;
+  text-decoration: none;
+}
+
+#navbar .nav-item-selected:hover,
+.nav-mobile-background .nav-item-selected:hover {
+  cursor: pointer;
+}
+
+#navbar .nav-item:hover,
+.nav-mobile-background .nav-item:hover {
+  border-bottom: 1px solid #f85102;
+  cursor: pointer;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+#navigation-mobile {
+  display: none;
+}
+
+.nav-mobile-background {
+  display: flex;
+  flex-direction: column;
+  min-width: 200px;
+  background-color: #171725;
+  height: 100%;
+  font-family: 'Poppins', sans-serif;
+  color: #fff
+}
+
+.nav-mobile-background .nav-item,
+.nav-mobile-background .nav-item-selected {
+  margin-top: 20px;
+}
+
+#navigation-mobile .MuiSvgIcon-root {
+  color: white;
+}
+
+@media (max-width: 700px) {
+  #navigation {
+    display: none;
+  }
+
+  #navigation-mobile {
+    display: block;
+  }
+}
