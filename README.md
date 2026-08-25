@@ -29,20 +29,19 @@ override per-build with `REACT_APP_BACKEND=<url> make build`.
 `plugins/ShopDB/config.yml` (created on first start):
 
 - `port` — HTTP port for the website + API (default 8080).
-- `api-username` — the `users` table row whose bcrypt password hash
-  authenticates `POST /chest-shops` and `PUT`/`DELETE /regions` (the
-  updater's API key).
+- `api-username` / `api-key` — credentials for `POST /chest-shops` and
+  `PUT`/`DELETE /regions` (what the ShopDB-Updater plugin sends). Set
+  `api-key` to the updater's key and the plugin provisions the bcrypt row in
+  the `users` table itself on startup — no database access needed. Leave
+  `api-key` empty to manage the `users` table externally (e.g. when the row
+  comes from an imported production dump).
 - `database-file` — SQLite file name inside the plugin data folder.
 
-Seed the API user once (hash is a standard `$2a$` bcrypt of the API key):
-
-```
-sqlite3 plugins/ShopDB/shopdb.db "INSERT INTO users (username, password) VALUES ('updater', '<bcrypt hash>');"
-```
-
-The schema matches the previous backend's PostgreSQL schema 1:1, so the
-production dump imports table-for-table (booleans as 0/1, timestamps as epoch
-millis).
+Deployment never needs a shell on the host: upload the jar, edit
+`plugins/ShopDB/config.yml`, restart. To import existing data, build the
+SQLite file elsewhere and upload it as `plugins/ShopDB/shopdb.db` — the schema
+matches the previous backend's PostgreSQL schema 1:1, so the production dump
+converts table-for-table (booleans as 0/1, timestamps as epoch millis).
 
 ## Develop
 

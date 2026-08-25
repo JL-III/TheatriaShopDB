@@ -5,5 +5,11 @@ port: 8080
 # POST /chest-shops and PUT/DELETE /regions (the ShopDB-Updater plugin's API key).
 api-username: updater
 
+# The API key itself. When set, the plugin writes/updates the bcrypt hash for
+# api-username on startup, so no manual database seeding is needed. Use the same
+# value the ShopDB-Updater plugin sends. Leave empty to manage the users table
+# externally (e.g. when the row comes from an imported production dump).
+api-key: ''
+
 # SQLite database file, relative to this plugin's data folder.
 database-file: shopdb.db

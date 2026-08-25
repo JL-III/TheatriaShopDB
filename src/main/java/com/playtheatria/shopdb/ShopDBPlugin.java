@@ -6,6 +6,7 @@ import com.playtheatria.shopdb.database.RegionRepository;
 import com.playtheatria.shopdb.database.ShopRepository;
 import com.playtheatria.shopdb.database.UserRepository;
 import com.playtheatria.shopdb.services.ApiKeyValidator;
+import com.playtheatria.shopdb.services.ApiUserProvisioner;
 import com.playtheatria.shopdb.services.ChestShopIngestService;
 import com.playtheatria.shopdb.services.RegionLogicService;
 import com.playtheatria.shopdb.web.ChestShopsRoute;
@@ -25,6 +26,7 @@ public final class ShopDBPlugin extends JavaPlugin {
         saveDefaultConfig();
         int port = getConfig().getInt("port", 8080);
         String apiUsername = getConfig().getString("api-username", "updater");
+        String apiKey = getConfig().getString("api-key", "");
         String databaseFile = getConfig().getString("database-file", "shopdb.db");
 
         try {
@@ -37,6 +39,8 @@ public final class ShopDBPlugin extends JavaPlugin {
             PlayerRepository players = new PlayerRepository(db);
             RegionRepository regions = new RegionRepository(db);
             UserRepository users = new UserRepository(db);
+
+            ApiUserProvisioner.provision(users, apiUsername, apiKey, getLogger());
 
             ApiKeyValidator apiKeyValidator = new ApiKeyValidator(users, apiUsername);
             RegionLogicService regionLogic = new RegionLogicService(regions, players, getLogger());
