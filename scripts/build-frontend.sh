@@ -11,8 +11,8 @@
 #
 # REACT_APP_BACKEND is baked into the bundle at build time (create-react-app
 # reads env vars statically) and must be an absolute URL — parts of the app
-# construct `new URL(...)` from it, which rejects relative paths. Override it
-# for the target host:
+# construct `new URL(...)` from it, which rejects relative paths. The default
+# comes from frontend/.env.production; set the variable to override it:
 #
 #   REACT_APP_BACKEND=https://shopdb.playtheatria.com/api/v3 ./scripts/build-frontend.sh
 #
@@ -25,8 +25,6 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 FRONTEND_DIR="$ROOT_DIR/frontend"
 BUILD_DIR="$FRONTEND_DIR/build"
 RESOURCES_DIR="$ROOT_DIR/src/main/resources/META-INF/resources"
-
-export REACT_APP_BACKEND="${REACT_APP_BACKEND:-http://localhost:8080/api/v3}"
 
 # create-react-app treats warnings as errors when CI is set, which makes the
 # build brittle. Default to a non-CI build but let callers override.
@@ -46,7 +44,7 @@ else
   npm --prefix "$FRONTEND_DIR" install
 fi
 
-echo "==> Building frontend production bundle (REACT_APP_BACKEND=$REACT_APP_BACKEND)"
+echo "==> Building frontend production bundle (REACT_APP_BACKEND=${REACT_APP_BACKEND:-<from frontend/.env.production>})"
 npm --prefix "$FRONTEND_DIR" run build
 
 if [ ! -f "$BUILD_DIR/index.html" ]; then

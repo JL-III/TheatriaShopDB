@@ -11,13 +11,14 @@ is built into the jar and served at `/`; the API keeps its `/api/v3` prefix.
 ## Build
 
 ```
-make build REACT_APP_BACKEND=https://shopdb.playtheatria.com/api/v3
+make build
 ```
 
 Produces `target/shopdb-<version>-runner.jar` (single runnable uber-jar
-containing the API and the website). `REACT_APP_BACKEND` is baked into the
-frontend bundle at build time and must be the absolute API URL of the
-deployment host (defaults to `http://localhost:8080/api/v3` for local runs).
+containing the API and the website). The absolute API URL baked into the
+frontend bundle comes from `frontend/.env.production` — update it when the
+deployment host changes, or override per-build with
+`REACT_APP_BACKEND=<url> make build`.
 
 Toolchain: JDK 11–17 for Maven/Quarkus; Node is pinned via `.tool-versions`
 (asdf) — react-scripts 4 needs a Node from that era. `make help` lists all

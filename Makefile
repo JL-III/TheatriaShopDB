@@ -8,10 +8,10 @@
 # Frontend (mirrors MC-Ledger / TheatriaMarket): the web UI source lives in the
 # top-level frontend/ directory (create-react-app, react-scripts 4). Node is
 # pinned via .tool-versions (asdf); the build script adds the OpenSSL legacy
-# flag webpack 4 needs on modern Node. REACT_APP_BACKEND is baked in at build
-# time and must be an absolute URL for the deployment host:
+# flag webpack 4 needs on modern Node. The API URL baked into the bundle comes
+# from frontend/.env.production; override it per-build with:
 #
-#   make build REACT_APP_BACKEND=https://shopdb.playtheatria.com/api/v3
+#   REACT_APP_BACKEND=https://shopdb.playtheatria.com/api/v3 make build
 #
 # The result is target/shopdb-<version>-runner.jar — one self-contained
 # process serving the website at / and the API at /api/v3, backed by SQLite.
@@ -30,7 +30,7 @@ build: frontend package
 
 ## frontend: Build the React app and stage it into Maven resources
 frontend:
-	REACT_APP_BACKEND=$(REACT_APP_BACKEND) ./scripts/build-frontend.sh
+	./scripts/build-frontend.sh
 
 ## package: Package the server uber-jar (expects a staged frontend)
 package:
