@@ -167,6 +167,8 @@ public class ChestShopIngestService {
                 ? null : event.getBaseMaterial().toLowerCase(Locale.ROOT);
         sign.itemDetails = event.getItemDetails() == null || event.getItemDetails().isEmpty()
                 ? null : GSON.toJson(event.getItemDetails());
+        sign.displayNamePlain = event.getItemDetails() == null
+                ? null : LegacyText.stripCodes(event.getItemDetails().getDisplayName());
         return sign;
     }
 

@@ -68,6 +68,53 @@ class ItemDetailsPersistenceTest {
         }
     }
 
+    @Test
+    void searchesByPlainDisplayNameCaseInsensitively() throws SQLException {
+        File file = tempDir.resolve("search.db").toFile();
+        try (Db db = new Db(file)) {
+            ShopRepository shops = new ShopRepository(db);
+
+            ChestShopRow named = row("shop-named", "fishing rod#1m");
+            named.baseMaterial = "fishing_rod";
+            named.itemDetails = DETAILS_JSON;
+            named.displayNamePlain = "Golden Rod";
+            shops.upsert(named);
+            shops.upsert(row("shop-plain", "dirt"));
+
+            assertEquals(List.of("Golden Rod"),
+                    shops.distinctDisplayNames(com.playtheatria.shopdb.models.TradeType.BUY, ""));
+
+            List<ChestShopRow> byName = shops.find("", "golden rod",
+                    com.playtheatria.shopdb.models.TradeType.BUY, "", false,
+                    com.playtheatria.shopdb.models.SortBy.MATERIAL, null, null);
+            assertEquals(1, byName.size());
+            assertEquals("shop-named", byName.get(0).id);
+
+            // No name filter still returns everything.
+            assertEquals(2, shops.find("", "", com.playtheatria.shopdb.models.TradeType.BUY,
+                    "", false, com.playtheatria.shopdb.models.SortBy.MATERIAL, null, null).size());
+        }
+    }
+
+    private static ChestShopRow row(String id, String material) {
+        ChestShopRow row = new ChestShopRow();
+        row.id = id;
+        row.server = "THE_ARK";
+        row.x = 1;
+        row.y = 64;
+        row.z = 1;
+        row.material = material;
+        row.quantity = 1;
+        row.buyPrice = 100.0;
+        row.buyPriceEach = 100.0;
+        row.isBuySign = true;
+        row.isSellSign = false;
+        row.isHidden = false;
+        row.isFull = false;
+        row.quantityAvailable = 1;
+        return row;
+    }
+
     private static ChestShopRow findOnly(ShopRepository shops) throws SQLException {
         List<ChestShopRow> rows = shops.findVisible("");
         assertEquals(1, rows.size());

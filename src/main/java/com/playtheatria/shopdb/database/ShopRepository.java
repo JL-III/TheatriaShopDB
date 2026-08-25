@@ -24,6 +24,7 @@ public class ShopRepository {
                     "cs.quantity, cs.quantity_available, cs.buy_price, cs.sell_price, " +
                     "cs.buy_price_each, cs.sell_price_each, cs.is_full, cs.is_hidden, " +
                     "cs.is_buy_sign, cs.is_sell_sign, cs.base_material, cs.item_details, " +
+                    "cs.display_name_plain, " +
                     "p.name AS owner_name, r.name AS town_name " +
                     "FROM chest_shop_sign cs " +
                     "LEFT JOIN player p ON p.id = cs.owner_id " +
@@ -31,6 +32,7 @@ public class ShopRepository {
 
     private static final String LIST_WHERE =
             "WHERE (? = '' OR cs.material = ?) " +
+                    "AND (? = '' OR cs.display_name_plain = ? COLLATE NOCASE) " +
                     "AND (? = 0 OR cs.is_buy_sign = 1) " +
                     "AND (? = 1 OR cs.is_sell_sign = 1) " +
                     "AND (? = '' OR cs.server = ?) " +
@@ -54,39 +56,74 @@ public class ShopRepository {
         return "ORDER BY cs.material ASC ";
     }
 
-    private void bindListWhere(PreparedStatement ps, String material, TradeType tradeType,
+    private void bindListWhere(PreparedStatement ps, String material, String displayName, TradeType tradeType,
                                String serverStr, boolean hideUnavailable) throws SQLException {
         boolean isBuy = tradeType == TradeType.BUY;
         ps.setString(1, material);
         ps.setString(2, material);
-        ps.setInt(3, isBuy ? 1 : 0);
-        ps.setInt(4, isBuy ? 1 : 0);
-        ps.setString(5, serverStr);
-        ps.setString(6, serverStr);
-        ps.setInt(7, hideUnavailable && tradeType == TradeType.SELL ? 1 : 0);
-        ps.setInt(8, hideUnavailable && tradeType == TradeType.BUY ? 1 : 0);
+        ps.setString(3, displayName);
+        ps.setString(4, displayName);
+        ps.setInt(5, isBuy ? 1 : 0);
+        ps.setInt(6, isBuy ? 1 : 0);
+        ps.setString(7, serverStr);
+        ps.setString(8, serverStr);
+        ps.setInt(9, hideUnavailable && tradeType == TradeType.SELL ? 1 : 0);
+        ps.setInt(10, hideUnavailable && tradeType == TradeType.BUY ? 1 : 0);
     }
 
-    public List<ChestShopRow> find(String material, TradeType tradeType, String serverStr,
+    public List<ChestShopRow> find(String material, String displayName, TradeType tradeType, String serverStr,
                                    boolean hideUnavailable, SortBy sortBy, Integer limit, Integer offset) throws SQLException {
         String sql = SELECT + LIST_WHERE + orderBy(sortBy, tradeType);
         if (limit != null) sql += "LIMIT " + limit + " OFFSET " + offset;
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
-                bindListWhere(ps, material, tradeType, serverStr, hideUnavailable);
+                bindListWhere(ps, material, displayName, tradeType, serverStr, hideUnavailable);
                 return mapRows(ps.executeQuery());
             }
         }
     }
 
-    public long count(String material, TradeType tradeType, String serverStr, boolean hideUnavailable) throws SQLException {
+    public long count(String material, String displayName, TradeType tradeType, String serverStr,
+                      boolean hideUnavailable) throws SQLException {
         String sql = "SELECT COUNT(*) FROM chest_shop_sign cs " + LIST_WHERE;
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
-                bindListWhere(ps, material, tradeType, serverStr, hideUnavailable);
+                bindListWhere(ps, material, displayName, tradeType, serverStr, hideUnavailable);
                 try (ResultSet rs = ps.executeQuery()) {
                     return rs.next() ? rs.getLong(1) : 0;
                 }
+            }
+        }
+    }
+
+    /**
+     * Distinct plain display names of visible shops, for the search dropdown.
+     * Case-insensitively deduplicated, keeping the first-seen casing.
+     */
+    public List<String> distinctDisplayNames(TradeType tradeType, String serverStr) throws SQLException {
+        boolean isBuy = tradeType == TradeType.BUY;
+        String sql = "SELECT DISTINCT display_name_plain FROM chest_shop_sign " +
+                "WHERE display_name_plain IS NOT NULL " +
+                "AND is_hidden = 0 " +
+                "AND (? = '' OR server = ?) " +
+                "AND (? = 0 OR is_buy_sign = 1) " +
+                "AND (? = 1 OR is_sell_sign = 1) " +
+                "ORDER BY display_name_plain COLLATE NOCASE";
+        synchronized (db.lock) {
+            try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
+                ps.setString(1, serverStr);
+                ps.setString(2, serverStr);
+                ps.setInt(3, isBuy ? 1 : 0);
+                ps.setInt(4, isBuy ? 1 : 0);
+                List<String> result = new ArrayList<>();
+                java.util.Set<String> seen = new java.util.HashSet<>();
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        String name = rs.getString(1);
+                        if (seen.add(name.toLowerCase(java.util.Locale.ROOT))) result.add(name);
+                    }
+                }
+                return result;
             }
         }
     }
@@ -259,8 +296,8 @@ public class ShopRepository {
         String sql = "INSERT INTO chest_shop_sign " +
                 "(id, server, x, y, z, material, owner_id, town_id, quantity, quantity_available, " +
                 "buy_price, sell_price, buy_price_each, sell_price_each, is_full, is_hidden, is_buy_sign, is_sell_sign, " +
-                "base_material, item_details) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                "base_material, item_details, display_name_plain) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON CONFLICT(id) DO UPDATE SET " +
                 "material = excluded.material, owner_id = excluded.owner_id, town_id = excluded.town_id, " +
                 "quantity = excluded.quantity, quantity_available = excluded.quantity_available, " +
@@ -270,7 +307,9 @@ public class ShopRepository {
                 "is_buy_sign = excluded.is_buy_sign, is_sell_sign = excluded.is_sell_sign, " +
                 "base_material = COALESCE(excluded.base_material, chest_shop_sign.base_material), " +
                 "item_details = CASE WHEN excluded.base_material IS NULL " +
-                "THEN chest_shop_sign.item_details ELSE excluded.item_details END";
+                "THEN chest_shop_sign.item_details ELSE excluded.item_details END, " +
+                "display_name_plain = CASE WHEN excluded.base_material IS NULL " +
+                "THEN chest_shop_sign.display_name_plain ELSE excluded.display_name_plain END";
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
                 ps.setString(1, row.id);
@@ -293,6 +332,7 @@ public class ShopRepository {
                 setNullableBool(ps, 18, row.isSellSign);
                 ps.setString(19, row.baseMaterial);
                 ps.setString(20, row.itemDetails);
+                ps.setString(21, row.displayNamePlain);
                 ps.executeUpdate();
             }
         }
@@ -390,6 +430,7 @@ public class ShopRepository {
                 row.isSellSign = getNullableBool(rs, "is_sell_sign");
                 row.baseMaterial = rs.getString("base_material");
                 row.itemDetails = rs.getString("item_details");
+                row.displayNamePlain = rs.getString("display_name_plain");
                 row.ownerName = rs.getString("owner_name");
                 row.townName = rs.getString("town_name");
                 result.add(row);
