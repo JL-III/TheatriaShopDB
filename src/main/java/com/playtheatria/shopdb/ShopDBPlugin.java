@@ -38,7 +38,7 @@ public final class ShopDBPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        saveDefaultConfig();
+        refreshConfigFile();
 
         ShopDBRootCommand root = new ShopDBRootCommand(this);
         getCommand("shopdb").setExecutor(root);
@@ -171,8 +171,22 @@ public final class ShopDBPlugin extends JavaPlugin {
     /** Re-reads config.yml and restarts all services. Returns true on success. */
     public synchronized boolean reloadServices() {
         stopServices();
-        reloadConfig();
+        refreshConfigFile();
         return startServices();
+    }
+
+    /**
+     * Regenerates config.yml if it was deleted and merges in any keys added by
+     * newer plugin versions, preserving existing values. Runs at startup and on
+     * /shopdb reload.
+     */
+    private void refreshConfigFile() {
+        if (!new File(getDataFolder(), "config.yml").exists()) {
+            saveDefaultConfig(); // writes the bundled, commented template
+        }
+        reloadConfig();
+        getConfig().options().copyDefaults(true);
+        saveConfig();
     }
 
     public ShopDBCommands getUpdaterCommands() {
