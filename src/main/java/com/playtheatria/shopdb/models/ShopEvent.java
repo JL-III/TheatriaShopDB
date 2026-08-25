@@ -18,6 +18,8 @@ public class ShopEvent {
     private BigDecimal sellPrice;
     private String item;
     private Boolean full;
+    private String baseMaterial;
+    private ItemDetailsDto itemDetails;
 
     public String getId() {
         return id;
@@ -73,6 +75,14 @@ public class ShopEvent {
 
     public Boolean getFull() {
         return full;
+    }
+
+    public String getBaseMaterial() {
+        return baseMaterial;
+    }
+
+    public ItemDetailsDto getItemDetails() {
+        return itemDetails;
     }
 
     @Override

@@ -18,11 +18,18 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class DtoMappers {
+    private static final com.google.gson.Gson GSON = new com.google.gson.Gson();
+
     public static ChestShopDto toChestShopDto(ChestShopRow row) {
         ChestShopDto dto = new ChestShopDto();
         dto.setServer(row.server == null ? null : Server.valueOf(row.server));
         dto.setLocation(new Location(row.x, row.y, row.z));
         dto.setMaterial(row.material);
+        dto.setBaseMaterial(row.baseMaterial);
+        if (row.itemDetails != null) {
+            dto.setItemDetails(GSON.fromJson(row.itemDetails,
+                    com.playtheatria.shopdb.models.ItemDetailsDto.class));
+        }
 
         // The old DTO's getOwner() lazily created an empty object, so "owner" is
         // always present in the JSON — {} when the shop has no resolvable owner.

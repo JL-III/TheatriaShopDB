@@ -2,6 +2,7 @@ package com.playtheatria.shopdb.commands;
 
 import com.playtheatria.shopdb.ShopDBPlugin;
 import com.playtheatria.shopdb.updater.ShopDBCommands;
+import com.playtheatria.shopdb.updater.ShopRescanner;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -41,6 +42,26 @@ public class ShopDBRootCommand implements CommandExecutor, TabCompleter {
             return true;
         }
 
+        if (args.length >= 1 && "rescan".equalsIgnoreCase(args[0])) {
+            if (!sender.hasPermission(ADMIN_PERMISSION)) {
+                sender.sendMessage(ChatColor.RED + "You don't have permission to rescan shops.");
+                return true;
+            }
+            ShopRescanner rescanner = plugin.getRescanner();
+            if (rescanner == null) {
+                sender.sendMessage(ChatColor.RED + "The shop event updater is not running (see the server log).");
+                return true;
+            }
+            if (args.length >= 2 && "cancel".equalsIgnoreCase(args[1])) {
+                sender.sendMessage(rescanner.cancel()
+                        ? ChatColor.YELLOW + "Rescan cancelled."
+                        : ChatColor.RED + "No rescan is running.");
+                return true;
+            }
+            sender.sendMessage(ChatColor.YELLOW + rescanner.start());
+            return true;
+        }
+
         ShopDBCommands delegate = plugin.getUpdaterCommands();
         if (delegate == null) {
             sender.sendMessage(ChatColor.RED + "The shop event updater is not running (see the server log).");
@@ -55,10 +76,18 @@ public class ShopDBRootCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
-            for (String option : new String[]{"list", "unlist", "reload"}) {
-                if ("reload".equals(option) && !sender.hasPermission(ADMIN_PERMISSION)) continue;
+            for (String option : new String[]{"list", "unlist", "reload", "rescan"}) {
+                if (("reload".equals(option) || "rescan".equals(option))
+                        && !sender.hasPermission(ADMIN_PERMISSION)) continue;
                 if (option.startsWith(prefix)) result.add(option);
             }
+            return result;
+        }
+
+        if (args.length == 2 && "rescan".equalsIgnoreCase(args[0])
+                && sender.hasPermission(ADMIN_PERMISSION)
+                && "cancel".startsWith(args[1].toLowerCase(Locale.ROOT))) {
+            result.add("cancel");
             return result;
         }
 

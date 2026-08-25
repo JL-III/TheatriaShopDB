@@ -55,7 +55,9 @@ public class Db implements AutoCloseable {
                     "is_full INTEGER, " +
                     "is_hidden INTEGER, " +
                     "is_buy_sign INTEGER, " +
-                    "is_sell_sign INTEGER)");
+                    "is_sell_sign INTEGER, " +
+                    "base_material VARCHAR, " +
+                    "item_details VARCHAR)");
             s.executeUpdate("CREATE TABLE IF NOT EXISTS users (" +
                     "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
                     "username VARCHAR, " +
@@ -63,6 +65,22 @@ public class Db implements AutoCloseable {
             s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_css_material ON chest_shop_sign (material)");
             s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_css_owner ON chest_shop_sign (owner_id)");
             s.executeUpdate("CREATE INDEX IF NOT EXISTS idx_css_town ON chest_shop_sign (town_id)");
+        }
+        // Columns introduced after 4.0.0; CREATE TABLE IF NOT EXISTS won't add
+        // them to a database created by an earlier version.
+        addColumnIfMissing("chest_shop_sign", "base_material", "VARCHAR");
+        addColumnIfMissing("chest_shop_sign", "item_details", "VARCHAR");
+    }
+
+    private void addColumnIfMissing(String table, String column, String type) throws SQLException {
+        try (Statement s = connection.createStatement();
+             java.sql.ResultSet rs = s.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (rs.next()) {
+                if (column.equalsIgnoreCase(rs.getString("name"))) return;
+            }
+        }
+        try (Statement s = connection.createStatement()) {
+            s.executeUpdate("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
         }
     }
 

@@ -6,6 +6,8 @@ public class ChestShopDto {
     private Server server;
     private Location location;
     private String material;
+    private String baseMaterial;
+    private ItemDetailsDto itemDetails;
     private ChestShopPlayerDto owner;
     private ChestShopRegionDto town;
     private Integer quantity;
@@ -28,6 +30,14 @@ public class ChestShopDto {
 
     public String getMaterial() {
         return material;
+    }
+
+    public String getBaseMaterial() {
+        return baseMaterial;
+    }
+
+    public ItemDetailsDto getItemDetails() {
+        return itemDetails;
     }
 
     public ChestShopPlayerDto getOwner() {
@@ -84,6 +94,14 @@ public class ChestShopDto {
 
     public void setMaterial(String material) {
         this.material = material;
+    }
+
+    public void setBaseMaterial(String baseMaterial) {
+        this.baseMaterial = baseMaterial;
+    }
+
+    public void setItemDetails(ItemDetailsDto itemDetails) {
+        this.itemDetails = itemDetails;
     }
 
     public void setOwner(ChestShopPlayerDto owner) {

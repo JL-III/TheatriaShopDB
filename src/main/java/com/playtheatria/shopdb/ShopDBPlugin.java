@@ -16,6 +16,7 @@ import com.playtheatria.shopdb.updater.ShopDBClient;
 import com.playtheatria.shopdb.updater.ShopDBCommands;
 import com.playtheatria.shopdb.updater.ShopDBEditCommands;
 import com.playtheatria.shopdb.updater.ShopEventsListener;
+import com.playtheatria.shopdb.updater.ShopRescanner;
 import com.playtheatria.shopdb.updater.ShopUpdater;
 import com.playtheatria.shopdb.updater.UpdaterConfig;
 import com.playtheatria.shopdb.web.ChestShopsRoute;
@@ -35,6 +36,7 @@ public final class ShopDBPlugin extends JavaPlugin {
     private ShopEventsListener shopEventsListener;
     private ShopDBCommands updaterCommands;
     private ShopDBEditCommands editCommands;
+    private ShopRescanner rescanner;
 
     @Override
     public void onEnable() {
@@ -90,7 +92,7 @@ public final class ShopDBPlugin extends JavaPlugin {
             getLogger().info("ShopDB listening on port " + port + " (website at /, API at /api/v3).");
 
             if (getConfig().getBoolean("updater.enabled", true)) {
-                startUpdater(port, apiKey);
+                startUpdater(port, apiKey, shops);
             }
             return true;
         } catch (Exception e) {
@@ -100,7 +102,7 @@ public final class ShopDBPlugin extends JavaPlugin {
         }
     }
 
-    private void startUpdater(int port, String apiKey) {
+    private void startUpdater(int port, String apiKey, ShopRepository shops) {
         if (getServer().getPluginManager().getPlugin("ChestShop") == null
                 || getServer().getPluginManager().getPlugin("WorldGuard") == null) {
             getLogger().warning("ChestShop and/or WorldGuard not found - shop event updater disabled. " +
@@ -130,6 +132,8 @@ public final class ShopDBPlugin extends JavaPlugin {
 
             shopUpdater = new ShopUpdater(this, eventBuffer, client, config, getLogger());
             shopUpdater.startSubmitting();
+            rescanner = new ShopRescanner(this, shops, eventBuffer, shopEventsListener, shopUpdater,
+                    getConfig().getInt("updater.rescan-pace-ticks", 4), getLogger());
             getLogger().info("Shop event updater started (posting every " + config.intervalMinutes + " minute(s)).");
         } catch (Exception e) {
             getLogger().severe("Failed to start shop event updater: " + e);
@@ -138,6 +142,10 @@ public final class ShopDBPlugin extends JavaPlugin {
 
     /** Flushes the event buffer and stops all services. Safe to call repeatedly. */
     public synchronized void stopServices() {
+        if (rescanner != null) {
+            rescanner.cancel();
+            rescanner = null;
+        }
         if (shopUpdater != null) {
             // Flush buffered shop events while our own HTTP server is still up.
             shopUpdater.flushNow();
@@ -191,6 +199,10 @@ public final class ShopDBPlugin extends JavaPlugin {
 
     public ShopDBCommands getUpdaterCommands() {
         return updaterCommands;
+    }
+
+    public ShopRescanner getRescanner() {
+        return rescanner;
     }
 
     public ShopDBEditCommands getEditCommands() {

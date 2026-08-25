@@ -50,4 +50,10 @@ public class BufferedShopEvent {
 
     @DatabaseField
     public Boolean full;
+
+    @DatabaseField
+    public String baseMaterial;
+
+    @DatabaseField
+    public String itemDetails; // JSON of ItemDetailsDto, null when the item has none
 }

@@ -23,7 +23,8 @@ public class ShopRepository {
             "SELECT cs.id, cs.server, cs.x, cs.y, cs.z, cs.material, cs.owner_id, cs.town_id, " +
                     "cs.quantity, cs.quantity_available, cs.buy_price, cs.sell_price, " +
                     "cs.buy_price_each, cs.sell_price_each, cs.is_full, cs.is_hidden, " +
-                    "cs.is_buy_sign, cs.is_sell_sign, p.name AS owner_name, r.name AS town_name " +
+                    "cs.is_buy_sign, cs.is_sell_sign, cs.base_material, cs.item_details, " +
+                    "p.name AS owner_name, r.name AS town_name " +
                     "FROM chest_shop_sign cs " +
                     "LEFT JOIN player p ON p.id = cs.owner_id " +
                     "LEFT JOIN region r ON r.id = cs.town_id ";
@@ -251,17 +252,25 @@ public class ShopRepository {
      * so they never change for an existing shop).
      */
     public void upsert(ChestShopRow row) throws SQLException {
+        // base_material/item_details: an event that couldn't resolve the item
+        // (base_material null) keeps whatever details the row already has; a
+        // resolved event is authoritative, including clearing details when the
+        // item has none.
         String sql = "INSERT INTO chest_shop_sign " +
                 "(id, server, x, y, z, material, owner_id, town_id, quantity, quantity_available, " +
-                "buy_price, sell_price, buy_price_each, sell_price_each, is_full, is_hidden, is_buy_sign, is_sell_sign) " +
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
+                "buy_price, sell_price, buy_price_each, sell_price_each, is_full, is_hidden, is_buy_sign, is_sell_sign, " +
+                "base_material, item_details) " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) " +
                 "ON CONFLICT(id) DO UPDATE SET " +
                 "material = excluded.material, owner_id = excluded.owner_id, town_id = excluded.town_id, " +
                 "quantity = excluded.quantity, quantity_available = excluded.quantity_available, " +
                 "buy_price = excluded.buy_price, sell_price = excluded.sell_price, " +
                 "buy_price_each = excluded.buy_price_each, sell_price_each = excluded.sell_price_each, " +
                 "is_full = excluded.is_full, is_hidden = excluded.is_hidden, " +
-                "is_buy_sign = excluded.is_buy_sign, is_sell_sign = excluded.is_sell_sign";
+                "is_buy_sign = excluded.is_buy_sign, is_sell_sign = excluded.is_sell_sign, " +
+                "base_material = COALESCE(excluded.base_material, chest_shop_sign.base_material), " +
+                "item_details = CASE WHEN excluded.base_material IS NULL " +
+                "THEN chest_shop_sign.item_details ELSE excluded.item_details END";
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
                 ps.setString(1, row.id);
@@ -282,8 +291,37 @@ public class ShopRepository {
                 setNullableBool(ps, 16, row.isHidden);
                 setNullableBool(ps, 17, row.isBuySign);
                 setNullableBool(ps, 18, row.isSellSign);
+                ps.setString(19, row.baseMaterial);
+                ps.setString(20, row.itemDetails);
                 ps.executeUpdate();
             }
+        }
+    }
+
+    /** Every shop's id and location (including hidden ones) — used by the rescanner. */
+    public List<ShopCoord> findAllCoords() throws SQLException {
+        synchronized (db.lock) {
+            try (PreparedStatement ps = db.connection.prepareStatement(
+                    "SELECT id, x, y, z FROM chest_shop_sign");
+                 ResultSet rs = ps.executeQuery()) {
+                List<ShopCoord> result = new ArrayList<>();
+                while (rs.next()) {
+                    result.add(new ShopCoord(rs.getString("id"), rs.getInt("x"), rs.getInt("y"), rs.getInt("z")));
+                }
+                return result;
+            }
+        }
+    }
+
+    public static class ShopCoord {
+        public final String id;
+        public final int x, y, z;
+
+        public ShopCoord(String id, int x, int y, int z) {
+            this.id = id;
+            this.x = x;
+            this.y = y;
+            this.z = z;
         }
     }
 
@@ -350,6 +388,8 @@ public class ShopRepository {
                 row.isHidden = getNullableBool(rs, "is_hidden");
                 row.isBuySign = getNullableBool(rs, "is_buy_sign");
                 row.isSellSign = getNullableBool(rs, "is_sell_sign");
+                row.baseMaterial = rs.getString("base_material");
+                row.itemDetails = rs.getString("item_details");
                 row.ownerName = rs.getString("owner_name");
                 row.townName = rs.getString("town_name");
                 result.add(row);

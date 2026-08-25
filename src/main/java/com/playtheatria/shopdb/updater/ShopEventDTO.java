@@ -1,6 +1,7 @@
 package com.playtheatria.shopdb.updater;
 
 import com.playtheatria.shopdb.models.EventType;
+import com.playtheatria.shopdb.models.ItemDetailsDto;
 
 import java.math.BigDecimal;
 
@@ -20,6 +21,8 @@ public class ShopEventDTO {
     private BigDecimal sellPrice;
     private String item;
     private Boolean full;
+    private String baseMaterial;
+    private ItemDetailsDto itemDetails;
 
     public void setId(String id) {
         this.id = id;
@@ -75,5 +78,13 @@ public class ShopEventDTO {
 
     public void setFull(Boolean full) {
         this.full = full;
+    }
+
+    public void setBaseMaterial(String baseMaterial) {
+        this.baseMaterial = baseMaterial;
+    }
+
+    public void setItemDetails(ItemDetailsDto itemDetails) {
+        this.itemDetails = itemDetails;
     }
 }
