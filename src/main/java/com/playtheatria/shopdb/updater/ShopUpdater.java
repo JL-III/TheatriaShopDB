@@ -46,9 +46,23 @@ public class ShopUpdater {
         scheduler.scheduleAtFixedRate(submitTask, 0, config.intervalMinutes, TimeUnit.MINUTES);
     }
 
-    /** Synchronous flush; called off the main thread cadence on plugin disable. */
+    /**
+     * Flushes the buffer and waits for completion. The HTTP client refuses to run
+     * on the main thread, and disable/reload happen there — so the POST runs on a
+     * worker thread we join (bounded, in case the API is unresponsive).
+     */
     public void flushNow() {
-        submitData();
+        if (Bukkit.isPrimaryThread()) {
+            Thread worker = new Thread(this::submitData, "ShopDB-flush");
+            worker.start();
+            try {
+                worker.join(10_000);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        } else {
+            submitData();
+        }
     }
 
     public void stop() {
