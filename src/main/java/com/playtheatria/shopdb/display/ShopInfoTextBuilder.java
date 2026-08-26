@@ -23,18 +23,8 @@ public final class ShopInfoTextBuilder {
         List<Component> lines = new ArrayList<>();
         ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
         Component realName = Component.translatable(item.getType());
-
-        if (meta != null && meta.hasDisplayName()) {
-            Component parenthesizedRealName = Component.text("(", NamedTextColor.GRAY)
-                    .append(realName.colorIfAbsent(NamedTextColor.GRAY))
-                    .append(Component.text(")", NamedTextColor.GRAY));
-            lines.add(Component.empty()
-                    .append(meta.displayName())
-                    .append(Component.space())
-                    .append(parenthesizedRealName));
-        } else {
-            lines.add(realName.color(NamedTextColor.WHITE));
-        }
+        Component displayName = meta != null && meta.hasDisplayName() ? meta.displayName() : null;
+        lines.addAll(identityLines(displayName, realName));
 
         if (meta != null) {
             addEnchantLines(lines, meta);
@@ -43,6 +33,17 @@ public final class ShopInfoTextBuilder {
         lines.addAll(stockLines(adminShop, stockCount, quantity, hasBuyPrice, showShopFull));
 
         return Component.join(Component.newline(), lines);
+    }
+
+    static List<Component> identityLines(Component displayName, Component realName) {
+        if (displayName == null) {
+            return List.of(realName.color(NamedTextColor.WHITE));
+        }
+
+        Component itemType = Component.text("(item:", NamedTextColor.GRAY)
+                .append(realName.colorIfAbsent(NamedTextColor.GRAY))
+                .append(Component.text(")", NamedTextColor.GRAY));
+        return List.of(displayName, itemType);
     }
 
     static int estimatedRenderedLineCount(Component component) {

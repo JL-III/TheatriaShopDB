@@ -12,6 +12,30 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 
 class ShopInfoTextBuilderTest {
     @Test
+    void putsCustomNameAndItemTypeOnSeparateLines() {
+        Component displayName = Component.text("Daily Reward Crate Key", NamedTextColor.AQUA);
+        Component realName = Component.translatable("item.minecraft.tripwire_hook");
+
+        assertEquals(
+                List.of(
+                        displayName,
+                        Component.text("(item:", NamedTextColor.GRAY)
+                                .append(Component.translatable(
+                                        "item.minecraft.tripwire_hook", NamedTextColor.GRAY))
+                                .append(Component.text(")", NamedTextColor.GRAY))),
+                ShopInfoTextBuilder.identityLines(displayName, realName));
+    }
+
+    @Test
+    void plainItemKeepsOneWhiteLocalizedNameLine() {
+        Component realName = Component.translatable("item.minecraft.bowl");
+
+        assertEquals(
+                List.of(Component.translatable("item.minecraft.bowl", NamedTextColor.WHITE)),
+                ShopInfoTextBuilder.identityLines(null, realName));
+    }
+
+    @Test
     void adminShopIsAlwaysInStock() {
         assertEquals(
                 List.of(Component.text("Always in stock", NamedTextColor.GREEN)),

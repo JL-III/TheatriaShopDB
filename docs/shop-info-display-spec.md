@@ -14,7 +14,8 @@ in front of any chest shop stacked directly above and never obscures the sign's
 text:
 
 ```
-         §6Golden Rod§r (Fishing Rod)     ← custom display name + real item name
+         §6Golden Rod§r                   ← custom display name
+         (item:Fishing Rod)              ← real item name (gray)
          Lure III                          ← enchant lines (gray)
          A lucky rod                       ← lore lines (light purple, italic)
          In stock (128)                    ← status word colored green/red
@@ -220,10 +221,11 @@ The client interpolates between steps, so the spin looks smooth.
 
 One `Component` with lines joined by `Component.newline()`. Order:
 
-**Line 1 — item identity.** If `meta.hasDisplayName()`: the custom name component
-(`meta.displayName()`, used as-is, its colors intact), then a space, then the real
-item name in gray parentheses. If no custom name: just the real item name in white.
-The real item name is the client-localized translatable:
+**Item identity.** If `meta.hasDisplayName()`: put the custom name component
+(`meta.displayName()`, used as-is, its colors intact) on the first line, then put
+the real item name on the next line as gray `(item:<item_name>)` text, for example
+`(item:Fishing Rod)`. If no custom name: use just one line containing the real
+item name in white. The real item name is the client-localized translatable:
 
 ```java
 Component realName = Component.translatable(item.getType()); // Paper: Material implements Translatable
@@ -370,9 +372,10 @@ a Bukkit server. Entity behavior is validated manually. Commit on
 4. Enchanted-book shop: stored enchants listed gray; item with `HIDE_ENCHANTS`
    flag: none listed. A long item such as the Titan Axe scales down enough that
    every line remains visible.
-5. Custom-named item: colored name, real item name in gray parentheses; lore in
-   light purple italic. Confirm every lore line shown in the vanilla tooltip is
-   present in the hologram, including lines beyond the first 10.
+5. Custom-named item: colored name on the first line, gray
+   `(item:<item_name>)` on the next line; lore in light purple italic. Confirm
+   every lore line shown in the vanilla tooltip is present in the hologram,
+   including lines beyond the first 10.
 6. Stock: empty the chest while looking — line flips to red `Out of stock` within
    ~1 second. Refill — flips back green.
 7. Sell sign with a full chest: red `Shop full` line.
