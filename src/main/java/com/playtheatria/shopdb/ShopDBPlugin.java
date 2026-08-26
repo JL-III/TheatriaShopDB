@@ -7,6 +7,7 @@ import com.playtheatria.shopdb.database.PlayerRepository;
 import com.playtheatria.shopdb.database.RegionRepository;
 import com.playtheatria.shopdb.database.ShopRepository;
 import com.playtheatria.shopdb.database.UserRepository;
+import com.playtheatria.shopdb.display.ShopInfoDisplayService;
 import com.playtheatria.shopdb.services.ApiKeyValidator;
 import com.playtheatria.shopdb.services.ApiUserProvisioner;
 import com.playtheatria.shopdb.services.ChestShopIngestService;
@@ -37,6 +38,7 @@ public final class ShopDBPlugin extends JavaPlugin {
     private ShopDBCommands updaterCommands;
     private ShopDBEditCommands editCommands;
     private ShopRescanner rescanner;
+    private ShopInfoDisplayService shopInfoDisplay;
 
     @Override
     public void onEnable() {
@@ -91,6 +93,19 @@ public final class ShopDBPlugin extends JavaPlugin {
             httpServer.start();
             getLogger().info("ShopDB listening on port " + port + " (website at /, API at /api/v3).");
 
+            if (getConfig().getBoolean("shop-info-display.enabled", true)) {
+                if (getServer().getPluginManager().getPlugin("ChestShop") != null) {
+                    shopInfoDisplay = new ShopInfoDisplayService(this,
+                            getConfig().getInt("shop-info-display.scan-interval-ticks", 4),
+                            getConfig().getInt("shop-info-display.range-blocks", 5),
+                            getConfig().getInt("shop-info-display.stock-refresh-ticks", 20));
+                    shopInfoDisplay.start();
+                    getLogger().info("Shop info display started.");
+                } else {
+                    getLogger().warning("shop-info-display.enabled is true but ChestShop is not installed - skipping.");
+                }
+            }
+
             if (getConfig().getBoolean("updater.enabled", true)) {
                 startUpdater(port, apiKey, shops);
             }
@@ -142,6 +157,10 @@ public final class ShopDBPlugin extends JavaPlugin {
 
     /** Flushes the event buffer and stops all services. Safe to call repeatedly. */
     public synchronized void stopServices() {
+        if (shopInfoDisplay != null) {
+            shopInfoDisplay.stop();
+            shopInfoDisplay = null;
+        }
         if (rescanner != null) {
             rescanner.cancel();
             rescanner = null;

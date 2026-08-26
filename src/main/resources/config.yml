@@ -30,3 +30,14 @@ updater:
   # world (refreshing item names/enchantments/lore, pruning stale rows). This is
   # how many ticks it waits between chunks - higher is gentler on the server.
   rescan-pace-ticks: 4
+
+# Floating item + text shown to a player looking at a chest shop sign (or its
+# chest) from up to range-blocks away. Per-player: nobody else sees it.
+shop-info-display:
+  enabled: true
+  # How often (in ticks) player look-targets are checked. Lower = snappier.
+  scan-interval-ticks: 4
+  # Max distance (blocks) at which the display appears.
+  range-blocks: 5
+  # How often (in ticks) the stock line refreshes while a player keeps looking.
+  stock-refresh-ticks: 20

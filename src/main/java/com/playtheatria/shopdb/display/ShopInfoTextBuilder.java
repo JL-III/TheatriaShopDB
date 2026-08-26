@@ -1,0 +1,113 @@
+package com.playtheatria.shopdb.display;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
+import org.bukkit.enchantments.Enchantment;
+import org.bukkit.inventory.ItemFlag;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.EnchantmentStorageMeta;
+import org.bukkit.inventory.meta.ItemMeta;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+
+public final class ShopInfoTextBuilder {
+    private static final int MAX_LORE_LINES = 10;
+
+    public static Component build(ItemStack item, boolean adminShop, Integer stockCount,
+                                  Integer quantity, boolean hasBuyPrice, boolean showShopFull) {
+        List<Component> lines = new ArrayList<>();
+        ItemMeta meta = item.hasItemMeta() ? item.getItemMeta() : null;
+        Component realName = Component.translatable(item.getType());
+
+        if (meta != null && meta.hasDisplayName()) {
+            Component parenthesizedRealName = Component.text("(", NamedTextColor.GRAY)
+                    .append(realName.colorIfAbsent(NamedTextColor.GRAY))
+                    .append(Component.text(")", NamedTextColor.GRAY));
+            lines.add(Component.empty()
+                    .append(meta.displayName())
+                    .append(Component.space())
+                    .append(parenthesizedRealName));
+        } else {
+            lines.add(realName.color(NamedTextColor.WHITE));
+        }
+
+        if (meta != null) {
+            addEnchantLines(lines, meta);
+            addLoreLines(lines, meta);
+        }
+        lines.addAll(stockLines(adminShop, stockCount, quantity, hasBuyPrice, showShopFull));
+
+        return Component.join(Component.newline(), lines);
+    }
+
+    static List<Component> stockLines(boolean adminShop, Integer stockCount, Integer quantity,
+                                      boolean hasBuyPrice, boolean showShopFull) {
+        List<Component> lines = new ArrayList<>();
+
+        if (adminShop) {
+            lines.add(Component.text("Always in stock", NamedTextColor.GREEN));
+            return lines;
+        }
+
+        if (stockCount == null) {
+            return lines;
+        }
+
+        if (hasBuyPrice && quantity != null) {
+            if (stockCount >= quantity) {
+                lines.add(Component.text("In stock", NamedTextColor.GREEN)
+                        .append(Component.text(" (" + stockCount + ")", NamedTextColor.GRAY)));
+            } else {
+                lines.add(Component.text("Out of stock", NamedTextColor.RED));
+            }
+        }
+
+        if (showShopFull) {
+            lines.add(Component.text("Shop full", NamedTextColor.RED));
+        }
+
+        return lines;
+    }
+
+    private static void addEnchantLines(List<Component> lines, ItemMeta meta) {
+        if (!meta.hasItemFlag(ItemFlag.HIDE_ENCHANTS)) {
+            addEnchantLines(lines, meta.getEnchants());
+        }
+
+        if (meta instanceof EnchantmentStorageMeta storageMeta
+                && !meta.hasItemFlag(ItemFlag.HIDE_STORED_ENCHANTS)
+                && !meta.hasItemFlag(ItemFlag.HIDE_ADDITIONAL_TOOLTIP)) {
+            addEnchantLines(lines, storageMeta.getStoredEnchants());
+        }
+    }
+
+    private static void addEnchantLines(List<Component> lines, Map<Enchantment, Integer> enchants) {
+        for (Map.Entry<Enchantment, Integer> enchant : enchants.entrySet()) {
+            lines.add(enchant.getKey().displayName(enchant.getValue())
+                    .colorIfAbsent(NamedTextColor.GRAY));
+        }
+    }
+
+    private static void addLoreLines(List<Component> lines, ItemMeta meta) {
+        List<Component> lore = meta.lore();
+        if (lore == null) {
+            return;
+        }
+
+        int displayedLines = Math.min(lore.size(), MAX_LORE_LINES);
+        for (int i = 0; i < displayedLines; i++) {
+            lines.add(lore.get(i)
+                    .colorIfAbsent(NamedTextColor.LIGHT_PURPLE)
+                    .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.TRUE));
+        }
+        if (lore.size() > MAX_LORE_LINES) {
+            lines.add(Component.text("…", NamedTextColor.GRAY));
+        }
+    }
+
+    private ShopInfoTextBuilder() {
+    }
+}
