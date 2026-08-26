@@ -55,7 +55,7 @@ public final class ShopInfoDisplayService implements Listener {
     private static final int TEXT_LINES_AT_MAX_SCALE = 6;
     private static final float ITEM_SCALE = 0.25f;
     private static final int TARGET_MISS_GRACE_SCANS = 2;
-    private static final int TARGET_CHANGE_CONFIRMATION_SCANS = 2;
+    private static final int TARGET_CHANGE_CONFIRMATION_SCANS = 1;
     private static final String ENTITY_TAG = "shopdb_info_display";
     private static final int SPIN_SECONDS_PER_ROTATION = 6;
 

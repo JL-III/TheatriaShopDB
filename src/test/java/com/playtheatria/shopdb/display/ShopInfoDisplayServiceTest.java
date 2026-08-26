@@ -40,8 +40,8 @@ class ShopInfoDisplayServiceTest {
     }
 
     @Test
-    void confirmsAChangedTargetOnTheSecondObservation() {
-        assertFalse(ShopInfoDisplayService.isTargetChangeConfirmed(1));
-        assertTrue(ShopInfoDisplayService.isTargetChangeConfirmed(2));
+    void confirmsAChangedTargetOnTheFirstObservation() {
+        assertFalse(ShopInfoDisplayService.isTargetChangeConfirmed(0));
+        assertTrue(ShopInfoDisplayService.isTargetChangeConfirmed(1));
     }
 }

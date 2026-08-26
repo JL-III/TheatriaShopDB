@@ -114,14 +114,11 @@ run, for every online player:
      its rotation (see §3), reset the missed-scan counter, and, every
      `stock-refresh-ticks` (config, default 20), rebuild the text component and
      reapply its dynamic scale so the stock status stays current (no respawn).
-   - **Different shop / sign line changed** → while a display is active,
-     require two consecutive observations of the same new sign and item line.
-     Continue rotating the old pair during the first observation, then despawn it
-     and spawn the confirmed replacement. Initial activation remains immediate.
-     Preserve that pending candidate through the single tolerated no-target scan;
-     reacquiring the old shop, observing a different candidate, or exhausting
-     the miss grace clears/replaces it. This prevents adjacent shop-edge chatter
-     from resetting the display without leaving the old shop stuck.
+   - **Different shop / sign line changed** → switch to the new shop on its
+     first valid observation: despawn the old pair and spawn the replacement.
+     Initial activation is also immediate. The missed-target grace still absorbs
+     empty-space and thin-sign-hitbox scans without making deliberate transitions
+     between valid shops lag behind the player's crosshair.
 
 Spawning a new display:
 
@@ -180,7 +177,7 @@ Constants (plain `private static final` in the service, not config):
 `MAX_TEXT_SCALE = 0.4f`, `MIN_TEXT_SCALE = 0.16f`,
 `TEXT_LINES_AT_MAX_SCALE = 6`, `ITEM_SCALE = 0.25f`,
 `TARGET_MISS_GRACE_SCANS = 2`,
-`TARGET_CHANGE_CONFIRMATION_SCANS = 2`,
+`TARGET_CHANGE_CONFIRMATION_SCANS = 1`,
 `ENTITY_TAG = "shopdb_info_display"`, `SPIN_SECONDS_PER_ROTATION = 6`.
 `Vector3f`/`Quaternionf` are `org.joml` — provided transitively by paper-api.
 
@@ -363,8 +360,9 @@ a Bukkit server. Entity behavior is validated manually. Commit on
    floats just above the sign, leaving every sign line unobstructed. With chest
    shops stacked vertically, the lower shop's display remains in front of the
    upper chest instead of inside it. Sign/chest transitions do not blink or reset
-   the spin. Look away: gone after two missed scans (~8 ticks); target the chest
-   from behind the sign: no display.
+   the spin, and a different valid shop replaces the display on the next scan.
+   Look away: gone after two missed scans (~8 ticks); target the chest from behind
+   the sign: no display.
 2. A second account looking at the same shop sees its own display; the first
    account sees exactly one.
 3. Shop with a truncated sign item name (e.g. an armor trim template): full item
