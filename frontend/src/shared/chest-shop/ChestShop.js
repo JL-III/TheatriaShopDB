@@ -2,7 +2,34 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 
 import { CopyButton } from '../copy-button';
+import { McText, prettyMaterial, prettyEnchant } from '../mc-text';
 import './chest-shop.css';
+
+// Clean display name for a shop's item: the true material when the updater
+// captured it, otherwise the raw (possibly truncated) sign text.
+const itemName = (chestShop) =>
+  prettyMaterial(chestShop.baseMaterial) || chestShop.material;
+
+// Custom name, enchantments, and lore of the traded item, when it has any.
+export const ItemDetails = ({ details }) => {
+  if (!details) {
+    return null;
+  }
+  return (
+    <div className="item-details txt-xs pt-1">
+      {(details.enchants || []).map((enchant, i) => (
+        <span key={`e${i}`} className="block item-enchant">
+          {prettyEnchant(enchant)}
+        </span>
+      ))}
+      {(details.lore || []).map((line, i) => (
+        <span key={`l${i}`} className="block item-lore">
+          <McText text={line} />
+        </span>
+      ))}
+    </div>
+  );
+};
 
 export const Stock = ({ tradeType, count, isFull }) => {
   if (tradeType === 'buy' && count === 0) {
@@ -42,6 +69,8 @@ export const ShopInfo = ({
   tradeType,
   quantity,
   item,
+  displayName,
+  details,
   count,
   price,
   player,
@@ -52,8 +81,16 @@ export const ShopInfo = ({
   return (
     <div>
       <span className="block txt-sm weight-bold pb-1">
-        {tradeType === 'buy' ? 'Selling' : 'Buying'} {quantity} {item} for $
-        {(price / quantity).toFixed(2)} each
+        {tradeType === 'buy' ? 'Selling' : 'Buying'} {quantity}{' '}
+        {displayName ? (
+          <>
+            <McText text={displayName} />{' '}
+            <span className="item-base-name weight-lite">({item})</span>
+          </>
+        ) : (
+          item
+        )}{' '}
+        for ${(price / quantity).toFixed(2)} each
       </span>
       <span className="block txt-sm weight-lite pb-1">
         By{' '}
@@ -70,6 +107,7 @@ export const ShopInfo = ({
         <i>({server})</i>
       </span>
       <Stock tradeType={tradeType} count={count} isFull={isFull} />
+      <ItemDetails details={details} />
     </div>
   );
 };
@@ -102,7 +140,9 @@ export const ChestShop = ({ chestShop, tradeType }) => {
         <ShopInfo
           tradeType={tradeType}
           quantity={chestShop.quantity}
-          item={chestShop.material}
+          item={itemName(chestShop)}
+          displayName={chestShop.itemDetails && chestShop.itemDetails.displayName}
+          details={chestShop.itemDetails}
           count={chestShop.quantityAvailable}
           price={tradeType === 'buy' ? chestShop.buyPrice : chestShop.sellPrice}
           player={chestShop.owner.name}
@@ -115,7 +155,7 @@ export const ChestShop = ({ chestShop, tradeType }) => {
         player={chestShop.owner.name}
         tradeType={tradeType}
         quantity={chestShop.quantity}
-        item={chestShop.material}
+        item={itemName(chestShop)}
         region={chestShop.town.name}
         price={tradeType === 'buy' ? chestShop.buyPrice : chestShop.sellPrice}
       />

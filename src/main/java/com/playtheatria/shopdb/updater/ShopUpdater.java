@@ -65,6 +65,11 @@ public class ShopUpdater {
         }
     }
 
+    /** Kicks off a buffer flush on a worker thread without blocking the caller. */
+    public void flushAsync() {
+        new Thread(this::submitData, "ShopDB-flush-async").start();
+    }
+
     public void stop() {
         scheduler.shutdownNow();
     }
@@ -97,6 +102,10 @@ public class ShopUpdater {
                 dto.setSellPrice(shopEvent.sellPrice);
                 dto.setItem(shopEvent.item);
                 dto.setFull(shopEvent.full);
+                dto.setBaseMaterial(shopEvent.baseMaterial);
+                dto.setItemDetails(shopEvent.itemDetails == null
+                        ? null
+                        : gson.fromJson(shopEvent.itemDetails, com.playtheatria.shopdb.models.ItemDetailsDto.class));
                 dtos.add(dto);
             }
 

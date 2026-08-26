@@ -30,7 +30,18 @@ public class EventBuffer {
         this.connectionSource = new JdbcConnectionSource("jdbc:sqlite:" + databaseFile.getAbsolutePath(), new SqliteDatabaseType());
         this.dao = DaoManager.createDao(connectionSource, BufferedShopEvent.class);
         TableUtils.createTableIfNotExists(connectionSource, BufferedShopEvent.class);
+        addColumnIfMissing("baseMaterial");
+        addColumnIfMissing("itemDetails");
         this.cache = new SimpleCache<>(cacheSize);
+    }
+
+    /** Adds columns introduced after 4.0.0 to a pre-existing buffer database. */
+    private void addColumnIfMissing(String column) {
+        try {
+            dao.executeRaw("ALTER TABLE shop_events ADD COLUMN `" + column + "` VARCHAR");
+        } catch (SQLException e) {
+            // Column already exists - fine.
+        }
     }
 
     public List<BufferedShopEvent> findAll() {

@@ -22,6 +22,7 @@ import java.util.logging.Logger;
 public class ChestShopIngestService {
     private static final String RESPONSE =
             "Successfully inserted/updated %s player(s), %s region(s), and %s chest shop(s). Removed %s chest shop(s).";
+    private static final com.google.gson.Gson GSON = new com.google.gson.Gson();
 
     private final ShopRepository shops;
     private final PlayerRepository players;
@@ -162,6 +163,12 @@ public class ChestShopIngestService {
         sign.isHidden = town == null || !Boolean.TRUE.equals(town.active);
         sign.isFull = event.getFull();
         sign.isSellSign = sign.sellPrice != null;
+        sign.baseMaterial = event.getBaseMaterial() == null
+                ? null : event.getBaseMaterial().toLowerCase(Locale.ROOT);
+        sign.itemDetails = event.getItemDetails() == null || event.getItemDetails().isEmpty()
+                ? null : GSON.toJson(event.getItemDetails());
+        sign.displayNamePlain = event.getItemDetails() == null
+                ? null : LegacyText.stripCodes(event.getItemDetails().getDisplayName());
         return sign;
     }
 

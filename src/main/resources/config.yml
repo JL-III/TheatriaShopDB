@@ -26,3 +26,7 @@ updater:
   cache-size: 1000
   # Log HTTP requests/responses made by the updater.
   log-http: true
+  # /shopdb rescan walks every shop the database knows and re-reads it from the
+  # world (refreshing item names/enchantments/lore, pruning stale rows). This is
+  # how many ticks it waits between chunks - higher is gentler on the server.
+  rescan-pace-ticks: 4

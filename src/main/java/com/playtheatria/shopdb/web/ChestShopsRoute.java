@@ -51,6 +51,8 @@ public class ChestShopsRoute implements RouteUtils.ThrowingHandler {
             post(exchange);
         } else if (seg.length == 1 && "material-names".equals(seg[0]) && "GET".equals(method)) {
             materialNames(exchange);
+        } else if (seg.length == 1 && "display-names".equals(seg[0]) && "GET".equals(method)) {
+            displayNames(exchange);
         } else if (seg.length == 1 && "price-snapshot".equals(seg[0]) && "GET".equals(method)) {
             priceSnapshot(exchange);
         } else {
@@ -64,6 +66,7 @@ public class ChestShopsRoute implements RouteUtils.ThrowingHandler {
         int page = RouteUtils.intParam(p, "page", 1);
         int pageSize = RouteUtils.intParam(p, "pageSize", 6);
         String material = RouteUtils.stringParam(p, "material", "");
+        String name = RouteUtils.stringParam(p, "name", "");
         Server server = Server.fromString(p.get("server"));
         TradeType tradeType = TradeType.fromString(RouteUtils.stringParam(p, "tradeType", "buy"));
         boolean hideUnavailable = RouteUtils.boolParam(p, "hideUnavailable", false);
@@ -74,8 +77,8 @@ public class ChestShopsRoute implements RouteUtils.ThrowingHandler {
         String serverStr = Server.toString(server);
 
         if (!distinct) {
-            long total = shops.count(material, tradeType, serverStr, hideUnavailable);
-            List<ChestShopRow> rows = shops.find(material, tradeType, serverStr, hideUnavailable,
+            long total = shops.count(material, name, tradeType, serverStr, hideUnavailable);
+            List<ChestShopRow> rows = shops.find(material, name, tradeType, serverStr, hideUnavailable,
                     sortBy, pageSize, (page - 1) * pageSize);
             List<ChestShopDto> results = rows.stream().map(DtoMappers::toChestShopDto).collect(Collectors.toList());
             RouteUtils.sendJson(exchange, 200, new PaginatedResponse<>(
@@ -83,7 +86,7 @@ public class ChestShopsRoute implements RouteUtils.ThrowingHandler {
             return;
         }
 
-        List<ChestShopRow> all = shops.find(material, tradeType, serverStr, hideUnavailable, sortBy, null, null);
+        List<ChestShopRow> all = shops.find(material, name, tradeType, serverStr, hideUnavailable, sortBy, null, null);
         List<ChestShopRow> distinctRows = distinctRows(all);
         long total = distinctRows.size();
         List<ChestShopDto> results = Pagination.getPage(distinctRows, page, pageSize)
@@ -133,6 +136,14 @@ public class ChestShopsRoute implements RouteUtils.ThrowingHandler {
         Server server = Server.fromString(p.get("server"));
         TradeType tradeType = TradeType.fromString(RouteUtils.stringParam(p, "tradeType", "buy"));
         RouteUtils.sendJson(exchange, 200, shops.distinctMaterialNames(tradeType, Server.toString(server)));
+    }
+
+    private void displayNames(HttpExchange exchange) throws Exception {
+        logger.info("GET /chest-shops/display-names");
+        Map<String, String> p = RouteUtils.queryParams(exchange);
+        Server server = Server.fromString(p.get("server"));
+        TradeType tradeType = TradeType.fromString(RouteUtils.stringParam(p, "tradeType", "buy"));
+        RouteUtils.sendJson(exchange, 200, shops.distinctDisplayNames(tradeType, Server.toString(server)));
     }
 
     private void priceSnapshot(HttpExchange exchange) throws Exception {

@@ -90,6 +90,7 @@ public class ShopEventsListener implements Listener {
         shopEvent.sellPrice = PriceUtil.getExactSellPrice(event.getSignLine(PRICE_LINE));
         shopEvent.item = event.getSignLine(ITEM_LINE);
         shopEvent.full = ChestShopUtil.chestIsFull(itemTradedByShop, event.getContainer().getInventory());
+        applyItemDetails(shopEvent, itemTradedByShop);
 
         buffer.createOrUpdate(shopEvent);
     }
@@ -107,7 +108,7 @@ public class ShopEventsListener implements Listener {
                 return;
             }
 
-            buffer.createOrUpdate(mapToShopUpdateEvent(shopSign, event.getInventory()));
+            buffer.createOrUpdate(buildUpdateEvent(shopSign, event.getInventory()));
         }
     }
 
@@ -122,7 +123,7 @@ public class ShopEventsListener implements Listener {
                 return;
             }
 
-            buffer.createOrUpdate(mapToShopUpdateEvent(shopSign, event.getOwnerInventory()));
+            buffer.createOrUpdate(buildUpdateEvent(shopSign, event.getOwnerInventory()));
         }
     }
 
@@ -139,7 +140,8 @@ public class ShopEventsListener implements Listener {
         buffer.createOrUpdate(shopEvent);
     }
 
-    private BufferedShopEvent mapToShopUpdateEvent(Sign shopSign, Inventory chestShopInventory) {
+    /** Builds an UPDATE event from a shop sign and its container inventory (also used by the rescanner). */
+    public BufferedShopEvent buildUpdateEvent(Sign shopSign, Inventory chestShopInventory) {
         ItemStack itemTradedByShop = determineItemTradedByShop(shopSign);
 
         BufferedShopEvent shopEvent = new BufferedShopEvent();
@@ -157,8 +159,15 @@ public class ShopEventsListener implements Listener {
         shopEvent.sellPrice = PriceUtil.getExactSellPrice(shopSign.getLine(PRICE_LINE));
         shopEvent.item = shopSign.getLine(ITEM_LINE);
         shopEvent.full = itemTradedByShop == null || ChestShopUtil.chestIsFull(itemTradedByShop, chestShopInventory);
+        applyItemDetails(shopEvent, itemTradedByShop);
 
         return shopEvent;
+    }
+
+    private static void applyItemDetails(BufferedShopEvent shopEvent, ItemStack itemTradedByShop) {
+        shopEvent.baseMaterial = ItemDetailsExtractor.baseMaterial(itemTradedByShop);
+        com.playtheatria.shopdb.models.ItemDetailsDto details = ItemDetailsExtractor.details(itemTradedByShop);
+        shopEvent.itemDetails = details == null ? null : gson.toJson(details);
     }
 
     public static ItemStack determineItemTradedByShop(Sign sign) {

@@ -4,6 +4,21 @@
   font-family: 'Poppins', sans-serif;
 }
 
+/* Item metadata (custom name, enchantments, lore) on shop cards. */
+.item-base-name {
+  opacity: 0.7;
+  font-size: 0.85em;
+}
+
+.item-enchant {
+  color: #a8a8a8;
+}
+
+.item-lore {
+  color: #c78aff;
+  font-style: italic;
+}
+
 #chest-shops .mc-avatar,
 #player .mc-avatar,
 #region .mc-avatar {

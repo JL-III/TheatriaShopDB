@@ -162,7 +162,12 @@ export const fetchChestShops = () => (dispatch, getState) => {
   }
 
   if (options.material) {
-    url.searchParams.append('material', options.material.value);
+    // The item selector mixes raw materials and custom display names; each
+    // option carries which kind it is and maps to the matching API filter.
+    url.searchParams.append(
+      options.material.kind === 'name' ? 'name' : 'material',
+      options.material.value
+    );
   }
 
   dispatch(loading());
@@ -194,18 +199,29 @@ export const fetchMaterials = () => (dispatch, getState) => {
 
   dispatch(loadingMaterials());
 
-  const url = new URL(`${BACKEND}/chest-shops/material-names`)
+  const params = (path) => {
+    const url = new URL(`${BACKEND}/chest-shops/${path}`);
+    if (options.server !== 'all') url.searchParams.append('server', options.server);
+    url.searchParams.append('tradeType', options.tradeType);
+    return url;
+  };
 
-  if (options.server !== 'all') url.searchParams.append('server', options.server);
-  url.searchParams.append('tradeType', options.tradeType)
-
-  fetch(url)
-    .then(parseResponse)
-    .then((response) => {
+  // Materials and custom item names share one selector; display names are
+  // listed first since they're what players recognize custom items by.
+  Promise.all([
+    fetch(params('material-names')).then(parseResponse),
+    fetch(params('display-names')).then(parseResponse),
+  ])
+    .then(([materials, names]) => {
       dispatch(
-        loadedMaterials(
-          response.map((material) => ({ value: material, label: material }))
-        )
+        loadedMaterials([
+          ...names.map((name) => ({ value: name, label: name, kind: 'name' })),
+          ...materials.map((material) => ({
+            value: material,
+            label: material,
+            kind: 'material',
+          })),
+        ])
       );
     })
     .catch((err) => {
