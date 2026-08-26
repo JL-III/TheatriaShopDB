@@ -291,10 +291,7 @@ public final class ShopInfoDisplayService implements Listener {
         shown.setAmount(1);
 
         Component component = buildText(sign, item);
-        Container connectedContainer = uBlock.findConnectedContainer(sign);
-        Location base = connectedContainer == null
-                ? sign.getLocation().toCenterLocation()
-                : connectedContainer.getLocation().toCenterLocation();
+        Location base = sign.getLocation().toCenterLocation();
         World world = base.getWorld();
 
         TextDisplay text = world.spawn(base.clone().add(0, TEXT_Y_OFFSET, 0), TextDisplay.class, e -> {

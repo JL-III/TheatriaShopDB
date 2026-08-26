@@ -8,9 +8,10 @@ deviating from anything marked **HARD CONSTRAINT**.
 
 When a player looks at a ChestShop sign or its connected chest from within ~5
 blocks while standing on the front side of the sign, a small "ghost" of the
-actual traded item floats above the shop chest, slowly rotating, with floating
-text above it. The complete stack clears the chest and sign so it never obscures
-the shop's sign text:
+actual traded item floats immediately above the sign itself, slowly rotating,
+with floating text above it. Anchoring the complete stack to the sign keeps it
+in front of any chest shop stacked directly above and never obscures the sign's
+text:
 
 ```
          §6Golden Rod§r (Fishing Rod)     ← custom display name + real item name
@@ -145,10 +146,7 @@ Both entities are spawned with the pre-spawn consumer overload so they are never
 visible to anyone before configuration is applied:
 
 ```java
-Container connectedContainer = uBlock.findConnectedContainer(sign);
-Location base = connectedContainer == null
-        ? sign.getLocation().toCenterLocation()
-        : connectedContainer.getLocation().toCenterLocation();
+Location base = sign.getLocation().toCenterLocation();
 World world = base.getWorld();
 
 TextDisplay text = world.spawn(base.clone().add(0, TEXT_Y_OFFSET, 0), TextDisplay.class, e -> {
@@ -186,15 +184,16 @@ Constants (plain `private static final` in the service, not config):
 `Vector3f`/`Quaternionf` are `org.joml` — provided transitively by paper-api.
 
 Text is bottom-anchored and the item is positioned below that anchor. Both
-entities remain above the chest top, leaving the sign unobstructed; text grows
-upward from its anchor as lines are added. Estimate the rendered line count from
-explicit newlines plus one line per 32 characters to account for the client's
-default 200-pixel wrapping. Up to 6 estimated lines use scale `0.4`; longer text
-scales proportionally (`0.4 * 6 / lineCount`) down to a minimum of `0.16`. Apply
-the scale inside the pre-spawn consumer and again whenever stock refresh rebuilds
-the component. Do not change `lineWidth`; client wrapping preserves all content
+entities use the sign block center as their base, so they float above the sign
+and in front of any chest stacked in the block above it; text grows upward from
+its anchor as lines are added. Estimate the rendered line count from explicit
+newlines plus one line per 32 characters to account for the client's default
+200-pixel wrapping. Up to 6 estimated lines use scale `0.4`; longer text scales
+proportionally (`0.4 * 6 / lineCount`) down to a minimum of `0.16`. Apply the
+scale inside the pre-spawn consumer and again whenever stock refresh rebuilds the
+component. Do not change `lineWidth`; client wrapping preserves all content
 instead of truncating it. The tighter offsets leave only a small clearance from
-the chest to the item and from the item to the text anchor.
+the sign to the item and from the item to the text anchor.
 
 Two players looking at the same shop each get their own pair of entities; each
 sees only their own. Display entities have no hitbox, so they cannot intercept the
@@ -359,9 +358,11 @@ a Bukkit server. Entity behavior is validated manually. Commit on
 
 1. From the sign's front side, look at a normal shop sign or its connected chest
    from ≤5 blocks: the enlarged compact text with the rotating item below it
-   floats just above the chest, leaving every sign line unobstructed. Sign/chest
-   transitions do not blink or reset the spin. Look away: gone after two missed
-   scans (~8 ticks); target the chest from behind the sign: no display.
+   floats just above the sign, leaving every sign line unobstructed. With chest
+   shops stacked vertically, the lower shop's display remains in front of the
+   upper chest instead of inside it. Sign/chest transitions do not blink or reset
+   the spin. Look away: gone after two missed scans (~8 ticks); target the chest
+   from behind the sign: no display.
 2. A second account looking at the same shop sees its own display; the first
    account sees exactly one.
 3. Shop with a truncated sign item name (e.g. an armor trim template): full item
