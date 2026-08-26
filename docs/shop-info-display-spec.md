@@ -6,10 +6,11 @@ deviating from anything marked **HARD CONSTRAINT**.
 
 ## What is being built
 
-When a player looks directly at a ChestShop sign from within ~5 blocks, a small
-"ghost" of the actual traded item floats above the shop chest, slowly
-rotating, with floating text above it. The complete stack clears the chest and
-sign so it never obscures the shop's sign text:
+When a player looks at a ChestShop sign or its connected chest from within ~5
+blocks while standing on the front side of the sign, a small "ghost" of the
+actual traded item floats above the shop chest, slowly rotating, with floating
+text above it. The complete stack clears the chest and sign so it never obscures
+the shop's sign text:
 
 ```
          §6Golden Rod§r (Fishing Rod)     ← custom display name + real item name
@@ -45,9 +46,11 @@ fixing the 15-character truncated sign-name problem in game.
   - `ShopEventsListener.determineItemTradedByShop(Sign)` (public static) —
     resolves the sign's item line (including `#hash` codes) to an `ItemStack` via
     ChestShop's `ItemParseEvent`. Returns `null` if unresolvable.
+  - `ChestShopUtil.findConnectedShopSigns(InventoryHolder)` — shop signs attached
+    to a container, including either half of a double chest.
   - `ChestShopUtil.chestIsFull(ItemStack, Inventory)`.
   - `com.Acrobot.ChestShop.Signs.ChestShopSign` — `isValid(Sign)`,
-    `isAdminShop(Sign)`, line index constants
+    `isAdminShop(Sign)`, `isShopBlock(Block)`, line index constants
     `NAME_LINE/QUANTITY_LINE/PRICE_LINE/ITEM_LINE`.
   - `com.Acrobot.ChestShop.Utils.uBlock.findConnectedContainer(Sign)` → `Container`
     or null (null for admin shops).
@@ -86,20 +89,37 @@ run, for every online player:
 1. `Block target = player.getTargetBlockExact(rangeBlocks);` (config
    `range-blocks`, default 5). This hits signs — vanilla ray tracing does not
    ignore passable blocks.
-2. Resolve the target only when it is a sign: if
-   `target != null && BlockUtil.isSign(target)`, read its `Sign` state and count
-   it only when `ChestShopSign.isValid(sign)`. Looking at the connected chest,
-   another block, or empty space does not target a shop.
+2. Resolve the target to a valid sign:
+   - If `BlockUtil.isSign(target)`, use its `Sign` state.
+   - Else if `ChestShopSign.isShopBlock(target)`, iterate
+     `ChestShopUtil.findConnectedShopSigns(container.getInventory().getHolder())`
+     and use the first eligible sign. The inventory-holder overload ensures the
+     unsigned half of a double chest still resolves the sign on the other half.
+   - A sign is eligible only when `ChestShopSign.isValid(sign)` and the player's
+     location is on its front side. Read the outward face from `Directional` or
+     `Rotatable` block data and require a positive horizontal dot product from
+     the sign center to the player. This keeps chest targeting unambiguous from
+     behind a shop.
+   - Otherwise, no shop is targeted.
 3. Compare with the player's `ActiveDisplay` (a `HashMap<UUID, ActiveDisplay>`,
    main-thread only):
-   - **No shop targeted** → if an ActiveDisplay exists, despawn it and remove the
-     map entry. Done.
+   - **No shop targeted** → tolerate one missed scan while the player remains
+     in front of the same still-valid sign, continuing the current rotation. On
+     the second consecutive miss, despawn it and remove the map entry. This
+     prevents the thin sign hitbox from causing destroy/respawn blinking.
    - **Same shop still targeted** (same sign `Location` AND the sign's
      `getLine(ITEM_LINE)` is unchanged from what was stored) → keep it. Advance
-     its rotation (see §3) and, every `stock-refresh-ticks` (config, default 20),
-     rebuild the text component and reapply its dynamic scale so the stock status
-     stays current (no respawn).
-   - **Different shop / sign line changed** → despawn old (if any), then spawn new.
+     its rotation (see §3), reset the missed-scan counter, and, every
+     `stock-refresh-ticks` (config, default 20), rebuild the text component and
+     reapply its dynamic scale so the stock status stays current (no respawn).
+   - **Different shop / sign line changed** → while a display is active,
+     require two consecutive observations of the same new sign and item line.
+     Continue rotating the old pair during the first observation, then despawn it
+     and spawn the confirmed replacement. Initial activation remains immediate.
+     Preserve that pending candidate through the single tolerated no-target scan;
+     reacquiring the old shop, observing a different candidate, or exhausting
+     the miss grace clears/replaces it. This prevents adjacent shop-edge chatter
+     from resetting the display without leaving the old shop stuck.
 
 Spawning a new display:
 
@@ -109,10 +129,15 @@ Spawning a new display:
 - Build the text component (§4), spawn the two entities (§2), store an
   `ActiveDisplay { Location signLocation; String itemLine; ItemStack item;
   ItemDisplay itemEntity; TextDisplay textEntity; float spinAngleDeg; int
-  ticksSinceStockRefresh; }`.
+  ticksSinceStockRefresh; int missedTargetScans; }`.
 
 This design means `ItemParseEvent` fires only when a player *starts* looking at a
 shop — never per tick.
+
+Before reusing an active pair, require both display entities to remain valid;
+otherwise remove any survivor and recreate the pair. Isolate runtime exceptions
+per player so one broken display cannot starve the remaining online-player scan;
+log only the first consecutive failure for that player.
 
 ### 2. The entities (per-player visibility)
 
@@ -152,9 +177,11 @@ player.showEntity(plugin, ghost);
 ```
 
 Constants (plain `private static final` in the service, not config):
-`TEXT_Y_OFFSET = 1.20`, `ITEM_Y_OFFSET = 0.85`,
-`MAX_TEXT_SCALE = 0.2f`, `MIN_TEXT_SCALE = 0.08f`,
+`TEXT_Y_OFFSET = 0.80`, `ITEM_Y_OFFSET = 0.65`,
+`MAX_TEXT_SCALE = 0.4f`, `MIN_TEXT_SCALE = 0.16f`,
 `TEXT_LINES_AT_MAX_SCALE = 6`, `ITEM_SCALE = 0.25f`,
+`TARGET_MISS_GRACE_SCANS = 2`,
+`TARGET_CHANGE_CONFIRMATION_SCANS = 2`,
 `ENTITY_TAG = "shopdb_info_display"`, `SPIN_SECONDS_PER_ROTATION = 6`.
 `Vector3f`/`Quaternionf` are `org.joml` — provided transitively by paper-api.
 
@@ -162,11 +189,12 @@ Text is bottom-anchored and the item is positioned below that anchor. Both
 entities remain above the chest top, leaving the sign unobstructed; text grows
 upward from its anchor as lines are added. Estimate the rendered line count from
 explicit newlines plus one line per 32 characters to account for the client's
-default 200-pixel wrapping. Up to 6 estimated lines use scale `0.2`; longer text
-scales proportionally (`0.2 * 6 / lineCount`) down to a minimum of `0.08`. Apply
+default 200-pixel wrapping. Up to 6 estimated lines use scale `0.4`; longer text
+scales proportionally (`0.4 * 6 / lineCount`) down to a minimum of `0.16`. Apply
 the scale inside the pre-spawn consumer and again whenever stock refresh rebuilds
 the component. Do not change `lineWidth`; client wrapping preserves all content
-instead of truncating it.
+instead of truncating it. The tighter offsets leave only a small clearance from
+the chest to the item and from the item to the text anchor.
 
 Two players looking at the same shop each get their own pair of entities; each
 sees only their own. Display entities have no hitbox, so they cannot intercept the
@@ -322,16 +350,18 @@ make build         # stages frontend + mvn package -> target/ShopDB-4.2.0.jar
 ```
 
 Add unit tests for `ShopInfoTextBuilder`'s stock-line logic and rendered-line
-estimate, plus the dynamic scale bounds; these can run without a Bukkit server.
-Entity behavior is validated manually. Commit on `feature/shop-info-display`
-with a clear message and push to `origin` only.
+estimate, plus the dynamic scale bounds, front-side calculation, missed-scan
+grace boundary, and target-change confirmation boundary; these can run without
+a Bukkit server. Entity behavior is validated manually. Commit on
+`feature/shop-info-display` with a clear message and push to `origin` only.
 
 ## Manual acceptance checklist (test server)
 
-1. Look directly at a normal shop sign from ≤5 blocks: compact text with the
-   rotating item below it floats entirely above the chest, leaving every sign
-   line unobstructed. Move the crosshair onto the chest or look away: gone within
-   ~4 ticks; looking at the chest alone does not show it.
+1. From the sign's front side, look at a normal shop sign or its connected chest
+   from ≤5 blocks: the enlarged compact text with the rotating item below it
+   floats just above the chest, leaving every sign line unobstructed. Sign/chest
+   transitions do not blink or reset the spin. Look away: gone after two missed
+   scans (~8 ticks); target the chest from behind the sign: no display.
 2. A second account looking at the same shop sees its own display; the first
    account sees exactly one.
 3. Shop with a truncated sign item name (e.g. an armor trim template): full item

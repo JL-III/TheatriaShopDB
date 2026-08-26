@@ -13,6 +13,7 @@ final class ActiveDisplay {
     final TextDisplay textEntity;
     float spinAngleDeg;
     int ticksSinceStockRefresh;
+    int missedTargetScans;
 
     ActiveDisplay(Location signLocation, String itemLine, ItemStack item,
                   ItemDisplay itemEntity, TextDisplay textEntity) {

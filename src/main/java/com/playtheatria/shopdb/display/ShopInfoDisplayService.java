@@ -14,8 +14,12 @@ import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
 import org.bukkit.block.Container;
 import org.bukkit.block.Sign;
+import org.bukkit.block.data.BlockData;
+import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.Rotatable;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
@@ -26,6 +30,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerChangedWorldEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.InventoryHolder;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.scheduler.BukkitTask;
@@ -35,16 +40,22 @@ import org.joml.Vector3f;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.logging.Level;
 
 public final class ShopInfoDisplayService implements Listener {
-    private static final double TEXT_Y_OFFSET = 1.20;
-    private static final double ITEM_Y_OFFSET = 0.85;
-    private static final float MAX_TEXT_SCALE = 0.2f;
-    private static final float MIN_TEXT_SCALE = 0.08f;
+    private static final double TEXT_Y_OFFSET = 0.80;
+    private static final double ITEM_Y_OFFSET = 0.65;
+    private static final float MAX_TEXT_SCALE = 0.4f;
+    private static final float MIN_TEXT_SCALE = 0.16f;
     private static final int TEXT_LINES_AT_MAX_SCALE = 6;
     private static final float ITEM_SCALE = 0.25f;
+    private static final int TARGET_MISS_GRACE_SCANS = 2;
+    private static final int TARGET_CHANGE_CONFIRMATION_SCANS = 2;
     private static final String ENTITY_TAG = "shopdb_info_display";
     private static final int SPIN_SECONDS_PER_ROTATION = 6;
 
@@ -54,6 +65,8 @@ public final class ShopInfoDisplayService implements Listener {
     private final int stockRefreshTicks;
     private final Map<UUID, ActiveDisplay> activeDisplays = new HashMap<>();
     private final Map<UUID, TargetKey> unresolvedTargets = new HashMap<>();
+    private final Map<UUID, PendingTarget> pendingTargets = new HashMap<>();
+    private final Set<UUID> playersWithLoggedScanError = new HashSet<>();
     private BukkitTask scanTask;
 
     public ShopInfoDisplayService(ShopDBPlugin plugin, int scanIntervalTicks,
@@ -85,48 +98,95 @@ public final class ShopInfoDisplayService implements Listener {
         }
         activeDisplays.clear();
         unresolvedTargets.clear();
+        pendingTargets.clear();
+        playersWithLoggedScanError.clear();
         HandlerList.unregisterAll(this);
     }
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        removePlayerState(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        removePlayerState(playerId);
+        playersWithLoggedScanError.remove(playerId);
     }
 
     @EventHandler
     public void onPlayerChangedWorld(PlayerChangedWorldEvent event) {
-        removePlayerState(event.getPlayer().getUniqueId());
+        UUID playerId = event.getPlayer().getUniqueId();
+        removePlayerState(playerId);
+        playersWithLoggedScanError.remove(playerId);
     }
 
     private void scanPlayers() {
         for (Player player : plugin.getServer().getOnlinePlayers()) {
-            scanPlayer(player);
+            UUID playerId = player.getUniqueId();
+            try {
+                scanPlayer(player);
+                playersWithLoggedScanError.remove(playerId);
+            } catch (RuntimeException exception) {
+                removePlayerState(playerId);
+                if (playersWithLoggedScanError.add(playerId)) {
+                    plugin.getLogger().log(Level.WARNING,
+                            "Failed to update shop info display for " + player.getName(), exception);
+                }
+            }
         }
     }
 
     private void scanPlayer(Player player) {
         UUID playerId = player.getUniqueId();
+        ActiveDisplay active = activeDisplays.get(playerId);
+        if (active != null && (!active.itemEntity.isValid() || !active.textEntity.isValid())) {
+            activeDisplays.remove(playerId);
+            despawn(active);
+            active = null;
+            pendingTargets.remove(playerId);
+        }
+
         Sign sign = findTargetShopSign(player);
         if (sign == null) {
+            if (active != null && isPlayerInFrontOfActiveSign(player, active)) {
+                active.missedTargetScans++;
+                if (isWithinTargetMissGrace(active.missedTargetScans)) {
+                    rotate(active);
+                    return;
+                }
+            }
             removePlayerState(playerId);
             return;
         }
 
         Location signLocation = sign.getLocation();
         String itemLine = sign.getLine(ChestShopSign.ITEM_LINE);
-        ActiveDisplay active = activeDisplays.get(playerId);
+        if (active != null) {
+            active.missedTargetScans = 0;
+        }
         if (active != null
                 && active.signLocation.equals(signLocation)
                 && active.itemLine.equals(itemLine)) {
             unresolvedTargets.remove(playerId);
+            pendingTargets.remove(playerId);
             rotate(active);
             refreshStockIfDue(active, sign);
             return;
         }
 
         if (active != null) {
+            TargetKey targetKey = new TargetKey(signLocation, itemLine);
+            PendingTarget pending = pendingTargets.get(playerId);
+            int observations = pending != null && pending.targetKey.equals(targetKey)
+                    ? pending.observations + 1
+                    : 1;
+            if (!isTargetChangeConfirmed(observations)) {
+                pendingTargets.put(playerId, new PendingTarget(targetKey, observations));
+                rotate(active);
+                return;
+            }
+            pendingTargets.remove(playerId);
             activeDisplays.remove(playerId);
             despawn(active);
+        } else {
+            pendingTargets.remove(playerId);
         }
 
         TargetKey targetKey = new TargetKey(signLocation, itemLine);
@@ -147,12 +207,83 @@ public final class ShopInfoDisplayService implements Listener {
 
     private Sign findTargetShopSign(Player player) {
         Block target = player.getTargetBlockExact(rangeBlocks);
-        if (target == null || !BlockUtil.isSign(target)) {
+        if (target == null) {
             return null;
         }
 
-        Sign sign = (Sign) target.getState();
-        return ChestShopSign.isValid(sign) ? sign : null;
+        if (BlockUtil.isSign(target)) {
+            Sign sign = (Sign) target.getState();
+            return isTargetableFromPlayerPosition(player, sign) ? sign : null;
+        }
+
+        if (!ChestShopSign.isShopBlock(target)) {
+            return null;
+        }
+
+        if (!(target.getState() instanceof Container container)) {
+            return null;
+        }
+        InventoryHolder inventoryHolder = container.getInventory().getHolder();
+        if (inventoryHolder == null) {
+            return null;
+        }
+
+        List<Sign> connectedSigns = ChestShopUtil.findConnectedShopSigns(inventoryHolder);
+        for (Sign sign : connectedSigns) {
+            if (isTargetableFromPlayerPosition(player, sign)) {
+                return sign;
+            }
+        }
+        return null;
+    }
+
+    private boolean isPlayerInFrontOfActiveSign(Player player, ActiveDisplay active) {
+        if (!(active.signLocation.getBlock().getState() instanceof Sign sign)) {
+            return false;
+        }
+        return isTargetableFromPlayerPosition(player, sign);
+    }
+
+    private boolean isTargetableFromPlayerPosition(Player player, Sign sign) {
+        if (!ChestShopSign.isValid(sign)) {
+            return false;
+        }
+
+        BlockFace facing = signFacing(sign.getBlockData());
+        if (facing == null) {
+            return false;
+        }
+
+        Location center = sign.getLocation().toCenterLocation();
+        Location playerLocation = player.getLocation();
+        return isPositionInFrontOfSign(
+                center.getX(), center.getZ(), facing,
+                playerLocation.getX(), playerLocation.getZ());
+    }
+
+    private static BlockFace signFacing(BlockData blockData) {
+        if (blockData instanceof Directional directional) {
+            return directional.getFacing();
+        }
+        if (blockData instanceof Rotatable rotatable) {
+            return rotatable.getRotation();
+        }
+        return null;
+    }
+
+    static boolean isPositionInFrontOfSign(double signX, double signZ, BlockFace facing,
+                                           double playerX, double playerZ) {
+        double offsetX = playerX - signX;
+        double offsetZ = playerZ - signZ;
+        return offsetX * facing.getModX() + offsetZ * facing.getModZ() > 0;
+    }
+
+    static boolean isWithinTargetMissGrace(int consecutiveMisses) {
+        return consecutiveMisses < TARGET_MISS_GRACE_SCANS;
+    }
+
+    static boolean isTargetChangeConfirmed(int consecutiveObservations) {
+        return consecutiveObservations >= TARGET_CHANGE_CONFIRMATION_SCANS;
     }
 
     private ActiveDisplay spawnDisplay(Player player, Sign sign, ItemStack item, String itemLine) {
@@ -266,6 +397,7 @@ public final class ShopInfoDisplayService implements Listener {
             despawn(active);
         }
         unresolvedTargets.remove(playerId);
+        pendingTargets.remove(playerId);
     }
 
     private void despawn(ActiveDisplay active) {
@@ -284,5 +416,8 @@ public final class ShopInfoDisplayService implements Listener {
     }
 
     private record TargetKey(Location signLocation, String itemLine) {
+    }
+
+    private record PendingTarget(TargetKey targetKey, int observations) {
     }
 }
