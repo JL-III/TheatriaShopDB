@@ -7,8 +7,8 @@ deviating from anything marked **HARD CONSTRAINT**.
 ## What is being built
 
 When a player looks at a ChestShop sign (or its chest) from within ~5 blocks, a
-small "ghost" of the actual traded item appears floating above the sign, slowly
-rotating, with floating text under it:
+small "ghost" of the actual traded item appears in front of the shop chest,
+slowly rotating, with floating text under it:
 
 ```
         [rotating item model]
@@ -137,6 +137,8 @@ TextDisplay text = world.spawn(base.clone().add(0, TEXT_Y_OFFSET, 0), TextDispla
     e.setShadowed(false);
     e.setSeeThrough(false);
     e.setBackgroundColor(Color.fromARGB(0xB0, 0, 0, 0)); // dim translucent black
+    e.setTransformation(new Transformation(
+            new Vector3f(), new Quaternionf(), new Vector3f(TEXT_SCALE, TEXT_SCALE, TEXT_SCALE), new Quaternionf()));
 });
 player.showEntity(plugin, text);           // ...except this player
 
@@ -153,7 +155,8 @@ player.showEntity(plugin, ghost);
 ```
 
 Constants (plain `private static final` in the service, not config):
-`TEXT_Y_OFFSET = 0.85`, `ITEM_Y_OFFSET = 1.55`, `ITEM_SCALE = 0.5f`,
+`TEXT_Y_OFFSET = 0.20`, `ITEM_Y_OFFSET = 0.55`, `TEXT_SCALE = 0.2f`,
+`ITEM_SCALE = 0.1f`,
 `ENTITY_TAG = "shopdb_info_display"`, `SPIN_SECONDS_PER_ROTATION = 6`.
 `Vector3f`/`Quaternionf` are `org.joml` — provided transitively by paper-api.
 
@@ -316,8 +319,9 @@ manually. Commit on `feature/shop-info-display` with a clear message and push to
 
 ## Manual acceptance checklist (test server)
 
-1. Look at a normal shop sign from ≤5 blocks: rotating item + text appear above
-   the sign; look away: gone within ~4 ticks.
+1. Look at a normal shop sign from ≤5 blocks: the compact rotating item + text
+   appear in front of the chest/sign without clipping; look away: gone within
+   ~4 ticks.
 2. A second account looking at the same shop sees its own display; the first
    account sees exactly one.
 3. Shop with a truncated sign item name (e.g. an armor trim template): full item

@@ -40,9 +40,10 @@ import java.util.Map;
 import java.util.UUID;
 
 public final class ShopInfoDisplayService implements Listener {
-    private static final double TEXT_Y_OFFSET = 0.85;
-    private static final double ITEM_Y_OFFSET = 1.55;
-    private static final float ITEM_SCALE = 0.5f;
+    private static final double TEXT_Y_OFFSET = 0.20;
+    private static final double ITEM_Y_OFFSET = 0.55;
+    private static final float TEXT_SCALE = 0.2f;
+    private static final float ITEM_SCALE = 0.1f;
     private static final String ENTITY_TAG = "shopdb_info_display";
     private static final int SPIN_SECONDS_PER_ROTATION = 6;
 
@@ -180,6 +181,11 @@ public final class ShopInfoDisplayService implements Listener {
             e.setShadowed(false);
             e.setSeeThrough(false);
             e.setBackgroundColor(Color.fromARGB(0xB0, 0, 0, 0));
+            e.setTransformation(new Transformation(
+                    new Vector3f(),
+                    new Quaternionf(),
+                    new Vector3f(TEXT_SCALE, TEXT_SCALE, TEXT_SCALE),
+                    new Quaternionf()));
         });
 
         ItemDisplay ghost = null;
