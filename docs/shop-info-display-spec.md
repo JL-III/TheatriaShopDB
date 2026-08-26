@@ -6,16 +6,17 @@ deviating from anything marked **HARD CONSTRAINT**.
 
 ## What is being built
 
-When a player looks at a ChestShop sign (or its chest) from within ~5 blocks, a
-small "ghost" of the actual traded item appears in front of the shop chest,
-slowly rotating, with floating text under it:
+When a player looks directly at a ChestShop sign from within ~5 blocks, a small
+"ghost" of the actual traded item floats above the shop chest, slowly
+rotating, with floating text above it. The complete stack clears the chest and
+sign so it never obscures the shop's sign text:
 
 ```
-        [rotating item model]
          §6Golden Rod§r (Fishing Rod)     ← custom display name + real item name
          Lure III                          ← enchant lines (gray)
          A lucky rod                       ← lore lines (light purple, italic)
          In stock (128)                    ← status word colored green/red
+        [rotating item model]
 ```
 
 The display is **visible only to the player looking at it** (other players see
@@ -44,11 +45,9 @@ fixing the 15-character truncated sign-name problem in game.
   - `ShopEventsListener.determineItemTradedByShop(Sign)` (public static) —
     resolves the sign's item line (including `#hash` codes) to an `ItemStack` via
     ChestShop's `ItemParseEvent`. Returns `null` if unresolvable.
-  - `ChestShopUtil.findConnectedShopSigns(Block chestBlock)` — shop signs attached
-    to a container block.
   - `ChestShopUtil.chestIsFull(ItemStack, Inventory)`.
   - `com.Acrobot.ChestShop.Signs.ChestShopSign` — `isValid(Sign)`,
-    `isAdminShop(Sign)`, `isShopBlock(Block)`, line index constants
+    `isAdminShop(Sign)`, line index constants
     `NAME_LINE/QUANTITY_LINE/PRICE_LINE/ITEM_LINE`.
   - `com.Acrobot.ChestShop.Utils.uBlock.findConnectedContainer(Sign)` → `Container`
     or null (null for admin shops).
@@ -70,7 +69,7 @@ All in a new package `com.playtheatria.shopdb.display`:
 |---|---|
 | `ShopInfoDisplayService.java` | Repeating scan task, per-player state map, spawn/despawn/refresh, cleanup. Implements `Listener` for quit/world-change. |
 | `ActiveDisplay.java` | Plain mutable holder for one player's current display (package-private is fine). |
-| `ShopInfoTextBuilder.java` | Static `Component` builder: item identity lines + stock line. No Bukkit scheduler/world access — pure meta reading, so it stays testable. |
+| `ShopInfoTextBuilder.java` | Static `Component` builder: item identity lines + stock line, plus a pure rendered-line estimate for dynamic scaling. No Bukkit scheduler/world access, so it stays testable. |
 
 Modified files: `ShopDBPlugin.java` (wiring), `src/main/resources/config.yml`
 (new section), `pom.xml` + `src/main/resources/plugin.yml` (version → `4.2.0`).
@@ -87,13 +86,10 @@ run, for every online player:
 1. `Block target = player.getTargetBlockExact(rangeBlocks);` (config
    `range-blocks`, default 5). This hits signs — vanilla ray tracing does not
    ignore passable blocks.
-2. Resolve the target to a shop sign:
-   - If `target != null && BlockUtil.isSign(target)`: `Sign sign = (Sign) target.getState();`
-     it counts if `ChestShopSign.isValid(sign)`.
-   - Else if `target != null && ChestShopSign.isShopBlock(target)` (looking at the
-     chest itself): `ChestShopUtil.findConnectedShopSigns(target)` — use the first
-     entry if any.
-   - Otherwise: no shop targeted.
+2. Resolve the target only when it is a sign: if
+   `target != null && BlockUtil.isSign(target)`, read its `Sign` state and count
+   it only when `ChestShopSign.isValid(sign)`. Looking at the connected chest,
+   another block, or empty space does not target a shop.
 3. Compare with the player's `ActiveDisplay` (a `HashMap<UUID, ActiveDisplay>`,
    main-thread only):
    - **No shop targeted** → if an ActiveDisplay exists, despawn it and remove the
@@ -101,8 +97,8 @@ run, for every online player:
    - **Same shop still targeted** (same sign `Location` AND the sign's
      `getLine(ITEM_LINE)` is unchanged from what was stored) → keep it. Advance
      its rotation (see §3) and, every `stock-refresh-ticks` (config, default 20),
-     rebuild the text component so the stock status stays current
-     (`textDisplay.text(newComponent)` — no respawn).
+     rebuild the text component and reapply its dynamic scale so the stock status
+     stays current (no respawn).
    - **Different shop / sign line changed** → despawn old (if any), then spawn new.
 
 Spawning a new display:
@@ -124,21 +120,22 @@ Both entities are spawned with the pre-spawn consumer overload so they are never
 visible to anyone before configuration is applied:
 
 ```java
-Location base = sign.getLocation().toCenterLocation();
+Container connectedContainer = uBlock.findConnectedContainer(sign);
+Location base = connectedContainer == null
+        ? sign.getLocation().toCenterLocation()
+        : connectedContainer.getLocation().toCenterLocation();
 World world = base.getWorld();
 
 TextDisplay text = world.spawn(base.clone().add(0, TEXT_Y_OFFSET, 0), TextDisplay.class, e -> {
     e.setVisibleByDefault(false);          // nobody sees it...
     e.setPersistent(false);                // never saved to disk
     e.addScoreboardTag(ENTITY_TAG);        // "shopdb_info_display"
-    e.text(component);
+    updateText(e, component);              // text + line-count-based scale
     e.setBillboard(Display.Billboard.CENTER);
     e.setAlignment(TextDisplay.TextAlignment.CENTER);
     e.setShadowed(false);
     e.setSeeThrough(false);
     e.setBackgroundColor(Color.fromARGB(0xB0, 0, 0, 0)); // dim translucent black
-    e.setTransformation(new Transformation(
-            new Vector3f(), new Quaternionf(), new Vector3f(TEXT_SCALE, TEXT_SCALE, TEXT_SCALE), new Quaternionf()));
 });
 player.showEntity(plugin, text);           // ...except this player
 
@@ -155,10 +152,21 @@ player.showEntity(plugin, ghost);
 ```
 
 Constants (plain `private static final` in the service, not config):
-`TEXT_Y_OFFSET = 0.20`, `ITEM_Y_OFFSET = 0.55`, `TEXT_SCALE = 0.2f`,
-`ITEM_SCALE = 0.1f`,
+`TEXT_Y_OFFSET = 1.20`, `ITEM_Y_OFFSET = 0.85`,
+`MAX_TEXT_SCALE = 0.2f`, `MIN_TEXT_SCALE = 0.08f`,
+`TEXT_LINES_AT_MAX_SCALE = 6`, `ITEM_SCALE = 0.25f`,
 `ENTITY_TAG = "shopdb_info_display"`, `SPIN_SECONDS_PER_ROTATION = 6`.
 `Vector3f`/`Quaternionf` are `org.joml` — provided transitively by paper-api.
+
+Text is bottom-anchored and the item is positioned below that anchor. Both
+entities remain above the chest top, leaving the sign unobstructed; text grows
+upward from its anchor as lines are added. Estimate the rendered line count from
+explicit newlines plus one line per 32 characters to account for the client's
+default 200-pixel wrapping. Up to 6 estimated lines use scale `0.2`; longer text
+scales proportionally (`0.2 * 6 / lineCount`) down to a minimum of `0.08`. Apply
+the scale inside the pre-spawn consumer and again whenever stock refresh rebuilds
+the component. Do not change `lineWidth`; client wrapping preserves all content
+instead of truncating it.
 
 Two players looking at the same shop each get their own pair of entities; each
 sees only their own. Display entities have no hitbox, so they cannot intercept the
@@ -213,7 +221,8 @@ line.colorIfAbsent(NamedTextColor.LIGHT_PURPLE)
     .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.TRUE)
 ```
 
-Cap lore at 10 lines; if truncated, append a gray `…` line.
+Show every lore line, including blank spacer lines. Do not cap or replace lore
+with an ellipsis; dynamic text scaling keeps long tooltips compact.
 
 **Stock line** (last). Only the status word/phrase is colored — any count suffix
 is gray. Rules, in order:
@@ -312,24 +321,27 @@ mvn -q test        # all existing tests must stay green
 make build         # stages frontend + mvn package -> target/ShopDB-4.2.0.jar
 ```
 
-Add a unit test for `ShopInfoTextBuilder`'s stock-line logic if it can run without
-a Bukkit server (the enum/flag decision table); entity behavior is validated
-manually. Commit on `feature/shop-info-display` with a clear message and push to
-`origin` only.
+Add unit tests for `ShopInfoTextBuilder`'s stock-line logic and rendered-line
+estimate, plus the dynamic scale bounds; these can run without a Bukkit server.
+Entity behavior is validated manually. Commit on `feature/shop-info-display`
+with a clear message and push to `origin` only.
 
 ## Manual acceptance checklist (test server)
 
-1. Look at a normal shop sign from ≤5 blocks: the compact rotating item + text
-   appear in front of the chest/sign without clipping; look away: gone within
-   ~4 ticks.
+1. Look directly at a normal shop sign from ≤5 blocks: compact text with the
+   rotating item below it floats entirely above the chest, leaving every sign
+   line unobstructed. Move the crosshair onto the chest or look away: gone within
+   ~4 ticks; looking at the chest alone does not show it.
 2. A second account looking at the same shop sees its own display; the first
    account sees exactly one.
 3. Shop with a truncated sign item name (e.g. an armor trim template): full item
    name shows.
 4. Enchanted-book shop: stored enchants listed gray; item with `HIDE_ENCHANTS`
-   flag: none listed.
+   flag: none listed. A long item such as the Titan Axe scales down enough that
+   every line remains visible.
 5. Custom-named item: colored name, real item name in gray parentheses; lore in
-   light purple italic.
+   light purple italic. Confirm every lore line shown in the vanilla tooltip is
+   present in the hologram, including lines beyond the first 10.
 6. Stock: empty the chest while looking — line flips to red `Out of stock` within
    ~1 second. Refill — flips back green.
 7. Sell sign with a full chest: red `Shop full` line.

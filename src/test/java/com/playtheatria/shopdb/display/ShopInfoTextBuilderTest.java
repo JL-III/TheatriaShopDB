@@ -2,9 +2,11 @@ package com.playtheatria.shopdb.display;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
+import net.kyori.adventure.text.format.TextDecoration;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -53,5 +55,27 @@ class ShopInfoTextBuilderTest {
         assertEquals(
                 List.of(Component.text("Shop full", NamedTextColor.RED)),
                 ShopInfoTextBuilder.stockLines(false, 128, 16, false, true));
+    }
+
+    @Test
+    void estimatesExplicitLinesAndClientWrapping() {
+        Component component = Component.text("Short line\n" + "x".repeat(33));
+
+        assertEquals(3, ShopInfoTextBuilder.estimatedRenderedLineCount(component));
+    }
+
+    @Test
+    void keepsEveryLoreLine() {
+        List<Component> lore = IntStream.rangeClosed(1, 13)
+                .<Component>mapToObj(line -> Component.text("Lore " + line))
+                .toList();
+
+        List<Component> styled = ShopInfoTextBuilder.styledLoreLines(lore);
+
+        assertEquals(13, styled.size());
+        assertEquals(
+                Component.text("Lore 13", NamedTextColor.LIGHT_PURPLE)
+                        .decorate(TextDecoration.ITALIC),
+                styled.get(12));
     }
 }

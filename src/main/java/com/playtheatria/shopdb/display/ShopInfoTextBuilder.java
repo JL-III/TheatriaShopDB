@@ -3,6 +3,7 @@ package com.playtheatria.shopdb.display;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.format.NamedTextColor;
 import net.kyori.adventure.text.format.TextDecoration;
+import net.kyori.adventure.text.serializer.plain.PlainTextComponentSerializer;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.inventory.ItemFlag;
 import org.bukkit.inventory.ItemStack;
@@ -14,7 +15,8 @@ import java.util.List;
 import java.util.Map;
 
 public final class ShopInfoTextBuilder {
-    private static final int MAX_LORE_LINES = 10;
+    private static final int APPROXIMATE_CHARACTERS_PER_WRAPPED_LINE = 32;
+    private static final PlainTextComponentSerializer PLAIN_TEXT = PlainTextComponentSerializer.plainText();
 
     public static Component build(ItemStack item, boolean adminShop, Integer stockCount,
                                   Integer quantity, boolean hasBuyPrice, boolean showShopFull) {
@@ -41,6 +43,18 @@ public final class ShopInfoTextBuilder {
         lines.addAll(stockLines(adminShop, stockCount, quantity, hasBuyPrice, showShopFull));
 
         return Component.join(Component.newline(), lines);
+    }
+
+    static int estimatedRenderedLineCount(Component component) {
+        String[] explicitLines = PLAIN_TEXT.serialize(component).split("\\n", -1);
+        int renderedLines = 0;
+        for (String line : explicitLines) {
+            int characterCount = line.codePointCount(0, line.length());
+            renderedLines += Math.max(1,
+                    (characterCount + APPROXIMATE_CHARACTERS_PER_WRAPPED_LINE - 1)
+                            / APPROXIMATE_CHARACTERS_PER_WRAPPED_LINE);
+        }
+        return renderedLines;
     }
 
     static List<Component> stockLines(boolean adminShop, Integer stockCount, Integer quantity,
@@ -97,15 +111,17 @@ public final class ShopInfoTextBuilder {
             return;
         }
 
-        int displayedLines = Math.min(lore.size(), MAX_LORE_LINES);
-        for (int i = 0; i < displayedLines; i++) {
-            lines.add(lore.get(i)
+        lines.addAll(styledLoreLines(lore));
+    }
+
+    static List<Component> styledLoreLines(List<Component> lore) {
+        List<Component> styled = new ArrayList<>(lore.size());
+        for (Component line : lore) {
+            styled.add(line
                     .colorIfAbsent(NamedTextColor.LIGHT_PURPLE)
                     .decorationIfAbsent(TextDecoration.ITALIC, TextDecoration.State.TRUE));
         }
-        if (lore.size() > MAX_LORE_LINES) {
-            lines.add(Component.text("…", NamedTextColor.GRAY));
-        }
+        return styled;
     }
 
     private ShopInfoTextBuilder() {

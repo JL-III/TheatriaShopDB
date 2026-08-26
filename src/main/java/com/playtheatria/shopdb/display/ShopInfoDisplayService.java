@@ -35,15 +35,16 @@ import org.joml.Vector3f;
 
 import java.math.BigDecimal;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
 public final class ShopInfoDisplayService implements Listener {
-    private static final double TEXT_Y_OFFSET = 0.20;
-    private static final double ITEM_Y_OFFSET = 0.55;
-    private static final float TEXT_SCALE = 0.2f;
-    private static final float ITEM_SCALE = 0.1f;
+    private static final double TEXT_Y_OFFSET = 1.20;
+    private static final double ITEM_Y_OFFSET = 0.85;
+    private static final float MAX_TEXT_SCALE = 0.2f;
+    private static final float MIN_TEXT_SCALE = 0.08f;
+    private static final int TEXT_LINES_AT_MAX_SCALE = 6;
+    private static final float ITEM_SCALE = 0.25f;
     private static final String ENTITY_TAG = "shopdb_info_display";
     private static final int SPIN_SECONDS_PER_ROTATION = 6;
 
@@ -146,21 +147,12 @@ public final class ShopInfoDisplayService implements Listener {
 
     private Sign findTargetShopSign(Player player) {
         Block target = player.getTargetBlockExact(rangeBlocks);
-        if (target == null) {
+        if (target == null || !BlockUtil.isSign(target)) {
             return null;
         }
 
-        if (BlockUtil.isSign(target)) {
-            Sign sign = (Sign) target.getState();
-            return ChestShopSign.isValid(sign) ? sign : null;
-        }
-
-        if (ChestShopSign.isShopBlock(target)) {
-            List<Sign> connectedSigns = ChestShopUtil.findConnectedShopSigns(target);
-            return connectedSigns.isEmpty() ? null : connectedSigns.get(0);
-        }
-
-        return null;
+        Sign sign = (Sign) target.getState();
+        return ChestShopSign.isValid(sign) ? sign : null;
     }
 
     private ActiveDisplay spawnDisplay(Player player, Sign sign, ItemStack item, String itemLine) {
@@ -168,24 +160,22 @@ public final class ShopInfoDisplayService implements Listener {
         shown.setAmount(1);
 
         Component component = buildText(sign, item);
-        Location base = sign.getLocation().toCenterLocation();
+        Container connectedContainer = uBlock.findConnectedContainer(sign);
+        Location base = connectedContainer == null
+                ? sign.getLocation().toCenterLocation()
+                : connectedContainer.getLocation().toCenterLocation();
         World world = base.getWorld();
 
         TextDisplay text = world.spawn(base.clone().add(0, TEXT_Y_OFFSET, 0), TextDisplay.class, e -> {
             e.setVisibleByDefault(false);
             e.setPersistent(false);
             e.addScoreboardTag(ENTITY_TAG);
-            e.text(component);
+            updateText(e, component);
             e.setBillboard(Display.Billboard.CENTER);
             e.setAlignment(TextDisplay.TextAlignment.CENTER);
             e.setShadowed(false);
             e.setSeeThrough(false);
             e.setBackgroundColor(Color.fromARGB(0xB0, 0, 0, 0));
-            e.setTransformation(new Transformation(
-                    new Vector3f(),
-                    new Quaternionf(),
-                    new Vector3f(TEXT_SCALE, TEXT_SCALE, TEXT_SCALE),
-                    new Quaternionf()));
         });
 
         ItemDisplay ghost = null;
@@ -228,9 +218,24 @@ public final class ShopInfoDisplayService implements Listener {
     private void refreshStockIfDue(ActiveDisplay active, Sign sign) {
         active.ticksSinceStockRefresh += scanIntervalTicks;
         if (active.ticksSinceStockRefresh >= stockRefreshTicks) {
-            active.textEntity.text(buildText(sign, active.item));
+            updateText(active.textEntity, buildText(sign, active.item));
             active.ticksSinceStockRefresh = 0;
         }
+    }
+
+    private static void updateText(TextDisplay textDisplay, Component component) {
+        float scale = textScaleForLineCount(ShopInfoTextBuilder.estimatedRenderedLineCount(component));
+        textDisplay.text(component);
+        textDisplay.setTransformation(new Transformation(
+                new Vector3f(),
+                new Quaternionf(),
+                new Vector3f(scale, scale, scale),
+                new Quaternionf()));
+    }
+
+    static float textScaleForLineCount(int lineCount) {
+        float scale = MAX_TEXT_SCALE * TEXT_LINES_AT_MAX_SCALE / Math.max(1, lineCount);
+        return Math.max(MIN_TEXT_SCALE, Math.min(MAX_TEXT_SCALE, scale));
     }
 
     private Component buildText(Sign sign, ItemStack item) {
