@@ -36,11 +36,11 @@ public class RegionRepository {
     }
 
     private static final String LIST_WHERE =
-            "WHERE (? = '' OR r.server = ?) " +
-                    "AND (? = 0 OR r.active = 1) " +
+            "WHERE r.active = 1 " +
+                    "AND (? = '' OR r.server = ?) " +
                     "AND (? = '' OR r.name = ?) ";
 
-    public List<RegionRow> page(String serverStr, boolean active, String name, SortBy sortBy, int limit, int offset) throws SQLException {
+    public List<RegionRow> page(String serverStr, String name, SortBy sortBy, int limit, int offset) throws SQLException {
         String sql;
         if (sortBy == SortBy.NUM_PLAYERS) {
             sql = "SELECT r.id, r.name, r.server, r.i_x, r.i_y, r.i_z, r.o_x, r.o_y, r.o_z, r.active, r.last_updated " +
@@ -61,23 +61,21 @@ public class RegionRepository {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
                 ps.setString(1, serverStr);
                 ps.setString(2, serverStr);
-                ps.setInt(3, active ? 1 : 0);
+                ps.setString(3, name);
                 ps.setString(4, name);
-                ps.setString(5, name);
                 return mapRows(ps.executeQuery());
             }
         }
     }
 
-    public long count(String serverStr, boolean active, String name) throws SQLException {
+    public long count(String serverStr, String name) throws SQLException {
         String sql = "SELECT COUNT(*) FROM region r " + LIST_WHERE;
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
                 ps.setString(1, serverStr);
                 ps.setString(2, serverStr);
-                ps.setInt(3, active ? 1 : 0);
+                ps.setString(3, name);
                 ps.setString(4, name);
-                ps.setString(5, name);
                 try (ResultSet rs = ps.executeQuery()) {
                     return rs.next() ? rs.getLong(1) : 0;
                 }
@@ -85,14 +83,13 @@ public class RegionRepository {
         }
     }
 
-    public List<String> names(String serverStr, boolean active) throws SQLException {
+    public List<String> names(String serverStr) throws SQLException {
         String sql = "SELECT DISTINCT name FROM region " +
-                "WHERE (? = '' OR server = ?) AND (? = 0 OR active = 1) ORDER BY name";
+                "WHERE active = 1 AND (? = '' OR server = ?) ORDER BY name";
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
                 ps.setString(1, serverStr);
                 ps.setString(2, serverStr);
-                ps.setInt(3, active ? 1 : 0);
                 List<String> result = new ArrayList<>();
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) result.add(rs.getString(1));

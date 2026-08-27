@@ -5,6 +5,15 @@ import { CopyButton } from '../copy-button';
 import { McText, prettyMaterial, prettyEnchant } from '../mc-text';
 import './chest-shop.css';
 
+const moneyFormatter = new Intl.NumberFormat('en-US', {
+  maximumFractionDigits: 20,
+});
+
+const unitPriceFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
 // Clean display name for a shop's item: the true material when the updater
 // captured it, otherwise the raw (possibly truncated) sign text.
 const itemName = (chestShop) =>
@@ -90,7 +99,7 @@ export const ShopInfo = ({
         ) : (
           item
         )}{' '}
-        for ${(price / quantity).toFixed(2)} each
+        for ${unitPriceFormatter.format(price / quantity)} each
       </span>
       <span className="block txt-sm weight-lite pb-1">
         By{' '}
@@ -123,7 +132,7 @@ export const ShopDescription = ({
   return (
     <span className="ml-80 block pt-4 pb-4 txt-sm">
       {player} is {tradeType === 'buy' ? 'selling' : 'buying'} {quantity} {item}{' '}
-      in {region} for ${price}
+      in {region} for ${moneyFormatter.format(price)}
     </span>
   );
 };

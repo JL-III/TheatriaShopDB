@@ -1,15 +1,12 @@
 import React from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import FormControlLabel from '@material-ui/core/FormControlLabel';
-import Checkbox from '@material-ui/core/Checkbox';
 
 import {
   getOptions,
-  setHideNonShopTowns,
   setSortBy
 } from '../state/regionsSlice';
 
-import { Filter, ServerFilter } from '../shared/filters';
+import { Filter } from '../shared/filters';
 import Regions from './Regions';
 import {Select} from "../shared/select";
 
@@ -28,20 +25,6 @@ const SearchRegions = () => {
       <div className='container flex'>
         <div id='filters'>
           <h3 className='color-white weight-bold txt-sm'>Filters</h3>
-
-          <Filter title='Options'>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  checked={options.hideNonShopTowns}
-                  onChange={(e) =>
-                    dispatch(setHideNonShopTowns(e.target.checked))
-                  }
-                />
-              }
-              label='Hide Unlisted Towns'
-            />
-          </Filter>
 
           <Filter title="Sort By">
             <Select
