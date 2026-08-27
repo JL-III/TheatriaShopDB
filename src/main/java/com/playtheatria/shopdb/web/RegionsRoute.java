@@ -79,16 +79,15 @@ public class RegionsRoute implements RouteUtils.ThrowingHandler {
         int page = RouteUtils.intParam(p, "page", 1);
         int pageSize = RouteUtils.intParam(p, "pageSize", 6);
         Server server = Server.fromString(p.get("server"));
-        boolean active = RouteUtils.boolParam(p, "active", false);
         String name = RouteUtils.stringParam(p, "name", "");
         SortBy sortBy = SortBy.fromString(RouteUtils.stringParam(p, "sortBy", "name"));
 
         RouteUtils.validatePaging(page, pageSize);
         String serverStr = Server.toString(server);
 
-        long total = regions.count(serverStr, active, name);
+        long total = regions.count(serverStr, name);
         List<RegionDto> results = new ArrayList<>();
-        for (RegionRow row : regions.page(serverStr, active, name, sortBy, pageSize, (page - 1) * pageSize)) {
+        for (RegionRow row : regions.page(serverStr, name, sortBy, pageSize, (page - 1) * pageSize)) {
             results.add(toRegionDto(row));
         }
         RouteUtils.sendJson(exchange, 200,
@@ -99,8 +98,7 @@ public class RegionsRoute implements RouteUtils.ThrowingHandler {
         logger.info("GET /region-names");
         Map<String, String> p = RouteUtils.queryParams(exchange);
         Server server = Server.fromString(p.get("server"));
-        boolean active = RouteUtils.boolParam(p, "active", false);
-        RouteUtils.sendJson(exchange, 200, regions.names(Server.toString(server), active));
+        RouteUtils.sendJson(exchange, 200, regions.names(Server.toString(server)));
     }
 
     private RegionRow findOr404(String serverSeg, String nameSeg) throws SQLException {

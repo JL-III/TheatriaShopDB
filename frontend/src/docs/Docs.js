@@ -57,9 +57,8 @@ export const Docs = () => {
                         <span className='code'>/rg i</span>.
                     </p>
                     <p className='text pt-3'>
-                        To see if a region is listed, visit the <Link to='/search/regions' className='link'>regions</Link> page and search for it.
-                        Under the region name is an indication of whether or not it is listed. If the region
-                        is not displayed, ensure you have unchecked the 'Hide Unlisted Towns' option.
+                        To see listed regions, visit the <Link to='/search/regions' className='link'>regions</Link> page.
+                        Unlisted regions are omitted from those search results.
                     </p>
                     <p className='text pt-3'>
                         It is also possible that the region is not yet in ShopDB. Regions are now sent to or updated

@@ -7,7 +7,6 @@ export const regionsSlice = createSlice({
   initialState: {
     options: {
       server: 'all',
-      hideNonShopTowns: true,
       name: undefined,
       page: 1,
       sortBy: { value: 'name', label: 'Name'}
@@ -33,10 +32,6 @@ export const regionsSlice = createSlice({
     },
     setName: (state, action) => {
       state.options.name = action.payload;
-      state.options.page = 1;
-    },
-    setHideNonShopTowns: (state, action) => {
-      state.options.hideNonShopTowns = action.payload;
       state.options.page = 1;
     },
     setSortBy: (state, action) => {
@@ -94,7 +89,6 @@ export const regionsSlice = createSlice({
 export const {
   setServer,
   setName,
-  setHideNonShopTowns,
   setSortBy,
   setPage,
   loading,
@@ -122,7 +116,6 @@ export const fetchRegions = () => (dispatch, getState) => {
   const url = new URL(`${BACKEND}/regions`);
 
   url.searchParams.append('page', options.page);
-  url.searchParams.append('active', options.hideNonShopTowns);
 
   if (options.server !== 'all') {
     url.searchParams.append('server', options.server);
@@ -166,7 +159,6 @@ export const fetchRegionNames = () => (dispatch, getState) => {
   const url = new URL(`${BACKEND}/regions/region-names`);
 
   if (options.server !== 'all') url.searchParams.append('server', options.server);
-  url.searchParams.append('active', options.hideNonShopTowns);
 
   fetch(url)
     .then(parseResponse)

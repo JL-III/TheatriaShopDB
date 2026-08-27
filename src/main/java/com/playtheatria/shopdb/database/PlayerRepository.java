@@ -13,6 +13,9 @@ import java.util.Locale;
 import java.util.Set;
 
 public class PlayerRepository {
+    private static final String HAS_CHEST_SHOPS =
+            "EXISTS (SELECT 1 FROM chest_shop_sign owned_shop WHERE owned_shop.owner_id = p.id) ";
+
     public static class PlayerRow {
         public long id;
         public String name;
@@ -78,14 +81,17 @@ public class PlayerRepository {
         String sql;
         if (sortBy == SortBy.NUM_CHEST_SHOPS) {
             sql = "SELECT p.id, p.name FROM player p LEFT JOIN chest_shop_sign c ON c.owner_id = p.id " +
-                    "WHERE (? = '' OR p.name = ?) GROUP BY p.id ORDER BY COUNT(c.id) DESC";
+                    "WHERE (? = '' OR p.name = ?) AND " + HAS_CHEST_SHOPS +
+                    "GROUP BY p.id ORDER BY COUNT(c.id) DESC, p.name ASC";
         } else if (sortBy == SortBy.NUM_REGIONS) {
             sql = "SELECT p.id, p.name FROM player p " +
                     "LEFT JOIN region_mayors rm ON rm.mayors_id = p.id " +
                     "LEFT JOIN region t ON t.id = rm.towns_id " +
-                    "WHERE (? = '' OR p.name = ?) GROUP BY p.id ORDER BY COUNT(t.id) DESC";
+                    "WHERE (? = '' OR p.name = ?) AND " + HAS_CHEST_SHOPS +
+                    "GROUP BY p.id ORDER BY COUNT(t.id) DESC, p.name ASC";
         } else {
-            sql = "SELECT p.id, p.name FROM player p WHERE (? = '' OR p.name = ?) ORDER BY p.name ASC";
+            sql = "SELECT p.id, p.name FROM player p WHERE (? = '' OR p.name = ?) AND " +
+                    HAS_CHEST_SHOPS + "ORDER BY p.name ASC";
         }
         sql += " LIMIT " + limit + " OFFSET " + offset;
         synchronized (db.lock) {
@@ -110,7 +116,7 @@ public class PlayerRepository {
         name = name.toLowerCase(Locale.ROOT);
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(
-                    "SELECT COUNT(*) FROM player WHERE (? = '' OR name = ?)")) {
+                    "SELECT COUNT(*) FROM player p WHERE (? = '' OR p.name = ?) AND " + HAS_CHEST_SHOPS)) {
                 ps.setString(1, name);
                 ps.setString(2, name);
                 try (ResultSet rs = ps.executeQuery()) {
@@ -122,7 +128,8 @@ public class PlayerRepository {
 
     public List<String> names() throws SQLException {
         synchronized (db.lock) {
-            try (PreparedStatement ps = db.connection.prepareStatement("SELECT name FROM player ORDER BY name")) {
+            try (PreparedStatement ps = db.connection.prepareStatement(
+                    "SELECT p.name FROM player p WHERE " + HAS_CHEST_SHOPS + "ORDER BY p.name")) {
                 List<String> result = new ArrayList<>();
                 try (ResultSet rs = ps.executeQuery()) {
                     while (rs.next()) result.add(rs.getString(1));
