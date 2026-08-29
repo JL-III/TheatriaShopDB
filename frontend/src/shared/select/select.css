@@ -1,4 +1,60 @@
-#chest-shops .item-selector,
+#chest-shops .item-selector-wrapper {
+  position: relative;
+  width: 360px;
+}
+
+#chest-shops .item-selector {
+  width: 100%;
+}
+
+#chest-shops .item-selector .theatria-select__value-container {
+  padding-right: 38px;
+}
+
+#chest-shops .item-search-clear {
+  position: absolute;
+  z-index: 2;
+  top: 50%;
+  right: 39px;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  transform: translateY(-50%);
+  border: 0;
+  background: rgb(14, 14, 23);
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  font: 600 26px/32px Arial, sans-serif;
+}
+
+#chest-shops .item-search-clear:hover,
+#chest-shops .item-search-clear:focus-visible {
+  color: rgba(255, 255, 255, 0.9);
+  outline: none;
+}
+
+#chest-shops .search-option {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+#chest-shops .search-option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#chest-shops .search-option-type {
+  flex: 0 0 auto;
+  color: rgba(255, 255, 255, 0.42);
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
 #regions .name-selector,
 #players .name-selector {
   width: 250px;

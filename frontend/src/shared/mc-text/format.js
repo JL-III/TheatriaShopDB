@@ -10,10 +10,34 @@ export const prettyMaterial = (name) =>
         .join(' ')
     : '';
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'];
+const ROMAN_NUMERALS = [
+  [1000, 'M'],
+  [900, 'CM'],
+  [500, 'D'],
+  [400, 'CD'],
+  [100, 'C'],
+  [90, 'XC'],
+  [50, 'L'],
+  [40, 'XL'],
+  [10, 'X'],
+  [9, 'IX'],
+  [5, 'V'],
+  [4, 'IV'],
+  [1, 'I'],
+];
 
-export const romanLevel = (level) =>
-  level >= 1 && level <= 10 ? ROMAN[level - 1] : String(level);
+export const romanLevel = (level) => {
+  let remaining = Number(level);
+  if (!Number.isInteger(remaining) || remaining < 1) return String(level);
+
+  return ROMAN_NUMERALS.reduce((roman, [value, numeral]) => {
+    while (remaining >= value) {
+      roman += numeral;
+      remaining -= value;
+    }
+    return roman;
+  }, '');
+};
 
 // Enchantments whose max level is 1 show no numeral, like the vanilla tooltip.
 const SINGLE_LEVEL = new Set([
