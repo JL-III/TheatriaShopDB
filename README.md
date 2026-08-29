@@ -51,6 +51,14 @@ SQLite file elsewhere and upload it as `plugins/ShopDB/shopdb.db` — the schema
 matches the previous backend's PostgreSQL schema 1:1, so the production dump
 converts table-for-table (booleans as 0/1, timestamps as epoch millis).
 
+Rich item search uses the resolved `base_material` and item metadata captured
+by the updater. After upgrading an existing database, run `/shopdb rescan`
+once so legacy shops can be filtered by book type, enchantment, and level.
+Display-visible enchantments are searchable normally. Hidden enchantments are
+searchable only when trusted Titan lore (`Ancient Power Ω`) independently
+confirms the enchantment and level, keeping cosmetic sheen enchants out of
+search results.
+
 ## Develop
 
 Run the web server without a Paper server:

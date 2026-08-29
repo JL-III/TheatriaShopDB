@@ -1,5 +1,6 @@
 package com.playtheatria.shopdb.database;
 
+import com.playtheatria.shopdb.models.ItemType;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -84,14 +85,15 @@ class ItemDetailsPersistenceTest {
             assertEquals(List.of("Golden Rod"),
                     shops.distinctDisplayNames(com.playtheatria.shopdb.models.TradeType.BUY, ""));
 
-            List<ChestShopRow> byName = shops.find("", "golden rod",
+            List<ChestShopRow> byName = shops.find("", "golden rod", "", "", 0, ItemType.ALL,
                     com.playtheatria.shopdb.models.TradeType.BUY, "", false,
                     com.playtheatria.shopdb.models.SortBy.MATERIAL, null, null);
             assertEquals(1, byName.size());
             assertEquals("shop-named", byName.get(0).id);
 
             // No name filter still returns everything.
-            assertEquals(2, shops.find("", "", com.playtheatria.shopdb.models.TradeType.BUY,
+            assertEquals(2, shops.find("", "", "", "", 0, ItemType.ALL,
+                    com.playtheatria.shopdb.models.TradeType.BUY,
                     "", false, com.playtheatria.shopdb.models.SortBy.MATERIAL, null, null).size());
         }
     }

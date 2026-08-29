@@ -6,14 +6,16 @@ import java.util.Objects;
 /**
  * Cosmetic metadata of the item a shop trades, captured from the resolved
  * ItemStack: custom display name and lore as legacy §-formatted strings
- * (colors preserved for the website to render), and enchantments unless the
- * item hides them. Used verbatim on the updater wire, in the chest_shop_sign
- * item_details JSON column, and in API responses.
+ * (colors preserved for the website to render), display-visible enchantments,
+ * and the enchantments that may be used for search. The complete object is
+ * used on the updater wire and in the chest_shop_sign item_details JSON
+ * column; search-only enchantments are stripped from player-facing responses.
  */
 public class ItemDetailsDto {
     private String displayName;
     private List<String> lore;
     private List<EnchantmentDto> enchants;
+    private List<EnchantmentDto> searchEnchants;
 
     public String getDisplayName() {
         return displayName;
@@ -39,10 +41,19 @@ public class ItemDetailsDto {
         this.enchants = enchants;
     }
 
+    public List<EnchantmentDto> getSearchEnchants() {
+        return searchEnchants;
+    }
+
+    public void setSearchEnchants(List<EnchantmentDto> searchEnchants) {
+        this.searchEnchants = searchEnchants;
+    }
+
     public boolean isEmpty() {
         return displayName == null
                 && (lore == null || lore.isEmpty())
-                && (enchants == null || enchants.isEmpty());
+                && (enchants == null || enchants.isEmpty())
+                && (searchEnchants == null || searchEnchants.isEmpty());
     }
 
     public static class EnchantmentDto {

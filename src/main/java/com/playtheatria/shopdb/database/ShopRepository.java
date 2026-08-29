@@ -1,5 +1,6 @@
 package com.playtheatria.shopdb.database;
 
+import com.playtheatria.shopdb.models.ItemType;
 import com.playtheatria.shopdb.models.SortBy;
 import com.playtheatria.shopdb.models.TradeType;
 
@@ -19,6 +20,33 @@ import java.util.List;
 public class ShopRepository {
     private final Db db;
 
+    // item_details is intentionally a VARCHAR for compatibility with imported
+    // databases. Always guard JSON table functions so one malformed legacy row
+    // cannot break search for every shop.
+    private static final String SAFE_ITEM_DETAILS =
+            "CASE WHEN json_valid(cs.item_details) THEN cs.item_details ELSE '{}' END";
+    private static final String SAFE_ENCHANT_OBJECT =
+            "CASE WHEN enchant.type = 'object' THEN enchant.value ELSE '{}' END";
+    private static final String SAFE_FACET_ENCHANT_OBJECT =
+            "CASE WHEN facet_enchant.type = 'object' THEN facet_enchant.value ELSE '{}' END";
+    // searchEnchants is authoritative when present, including an explicitly
+    // empty array (used to keep cosmetic sheen enchantments out of search).
+    // Rows written before searchEnchants existed fall back to visible enchants.
+    private static final String SEARCH_ENCHANT_PATH =
+            "CASE WHEN json_type(" + SAFE_ITEM_DETAILS + ", '$.searchEnchants') IS NOT NULL " +
+                    "THEN '$.searchEnchants' ELSE '$.enchants' END";
+    private static final String SEARCH_ENCHANTS =
+            "json_each(" + SAFE_ITEM_DETAILS + ", " + SEARCH_ENCHANT_PATH + ")";
+    private static final String HAS_ENCHANTMENTS =
+            "EXISTS (SELECT 1 FROM " + SEARCH_ENCHANTS + " enchant " +
+                    "WHERE json_type(" + SAFE_ENCHANT_OBJECT + ", '$.name') = 'text' " +
+                    "AND trim(json_extract(" + SAFE_ENCHANT_OBJECT + ", '$.name')) <> '')";
+    private static final String IS_BOOK =
+            "lower(coalesce(cs.base_material, '')) IN " +
+                    "('book', 'writable_book', 'written_book', 'enchanted_book', 'knowledge_book')";
+    private static final String IS_ENCHANTED_BOOK =
+            "lower(coalesce(cs.base_material, '')) = 'enchanted_book'";
+
     private static final String SELECT =
             "SELECT cs.id, cs.server, cs.x, cs.y, cs.z, cs.material, cs.owner_id, cs.town_id, " +
                     "cs.quantity, cs.quantity_available, cs.buy_price, cs.sell_price, " +
@@ -31,13 +59,53 @@ public class ShopRepository {
                     "LEFT JOIN region r ON r.id = cs.town_id ";
 
     private static final String LIST_WHERE =
-            "WHERE (? = '' OR cs.material = ?) " +
-                    "AND (? = '' OR cs.display_name_plain = ? COLLATE NOCASE) " +
-                    "AND (? = 0 OR cs.is_buy_sign = 1) " +
-                    "AND (? = 1 OR cs.is_sell_sign = 1) " +
-                    "AND (? = '' OR cs.server = ?) " +
-                    "AND (? = 0 OR cs.is_full = 0) " +
-                    "AND (? = 0 OR cs.quantity_available > 0) " +
+            "WHERE (?1 = '' OR cs.material = ?1) " +
+                    "AND (?2 = '' OR cs.display_name_plain = ?2 COLLATE NOCASE) " +
+                    "AND (?3 = '' " +
+                    "OR instr(lower(cs.material), lower(?3)) > 0 " +
+                    "OR (trim(replace(?3, '_', '')) <> '' " +
+                    "    AND instr(replace(lower(cs.material), '_', ' '), " +
+                    "              replace(lower(?3), '_', ' ')) > 0) " +
+                    "OR instr(lower(coalesce(cs.base_material, '')), lower(?3)) > 0 " +
+                    "OR (trim(replace(?3, '_', '')) <> '' " +
+                    "    AND instr(replace(lower(coalesce(cs.base_material, '')), '_', ' '), " +
+                    "         replace(lower(?3), '_', ' ')) > 0) " +
+                    "OR instr(lower(coalesce(cs.display_name_plain, '')), lower(?3)) > 0 " +
+                    "OR EXISTS (SELECT 1 FROM " + SEARCH_ENCHANTS + " enchant " +
+                    "           WHERE enchant.type = 'object' " +
+                    "           AND (instr(lower(coalesce(json_extract(" + SAFE_ENCHANT_OBJECT +
+                    ", '$.name'), '')), lower(?3)) > 0 " +
+                    "                OR (trim(replace(?3, '_', '')) <> '' " +
+                    "                    AND instr(replace(lower(coalesce(json_extract(" + SAFE_ENCHANT_OBJECT +
+                    ", '$.name'), '')), '_', ' '), replace(lower(?3), '_', ' ')) > 0) " +
+                    "                OR instr(replace(lower(coalesce(json_extract(" + SAFE_ENCHANT_OBJECT +
+                    ", '$.name'), '')), '_', ' ') || ' ' || " +
+                    "                         CAST(coalesce(CAST(json_extract(" + SAFE_ENCHANT_OBJECT +
+                    ", '$.level') AS INTEGER), 0) AS TEXT), " +
+                    "                         replace(lower(?3), '_', ' ')) > 0)) " +
+                    "OR EXISTS (SELECT 1 FROM json_each(" + SAFE_ITEM_DETAILS + ", '$.lore') lore " +
+                    "           WHERE instr(lower(CAST(lore.value AS TEXT)), lower(?3)) > 0)) " +
+                    "AND (?4 = '' OR EXISTS " +
+                    "    (SELECT 1 FROM " + SEARCH_ENCHANTS + " enchant " +
+                    "     WHERE enchant.type = 'object' " +
+                    "     AND replace(lower(coalesce(json_extract(" + SAFE_ENCHANT_OBJECT +
+                    ", '$.name'), '')), ' ', '_') = replace(lower(?4), ' ', '_') " +
+                    "     AND (?5 = 0 OR coalesce(CAST(json_extract(" + SAFE_ENCHANT_OBJECT +
+                    ", '$.level') AS INTEGER), 0) >= ?5) " +
+                    "     AND (?6 = 0 OR coalesce(CAST(json_extract(" + SAFE_ENCHANT_OBJECT +
+                    ", '$.level') AS INTEGER), 0) = ?6))) " +
+                    "AND (?7 = 0 " +
+                    "     OR (?7 = 1 AND " + IS_BOOK + ") " +
+                    "     OR (?7 = 2 AND " + IS_ENCHANTED_BOOK + ") " +
+                    "     OR (?7 = 3 AND " + HAS_ENCHANTMENTS + ") " +
+                    "     OR (?7 = 4 AND cs.base_material IS NOT NULL " +
+                    "         AND (cs.item_details IS NULL OR json_valid(cs.item_details)) " +
+                    "         AND NOT " + HAS_ENCHANTMENTS + " AND NOT " + IS_ENCHANTED_BOOK + ")) " +
+                    "AND (?8 = 0 OR cs.is_buy_sign = 1) " +
+                    "AND (?8 = 1 OR cs.is_sell_sign = 1) " +
+                    "AND (?9 = '' OR cs.server = ?9) " +
+                    "AND (?10 = 0 OR cs.is_full = 0) " +
+                    "AND (?11 = 0 OR cs.quantity_available > 0) " +
                     "AND cs.is_hidden = 0 ";
 
     public ShopRepository(Db db) {
@@ -56,44 +124,72 @@ public class ShopRepository {
         return "ORDER BY cs.material ASC ";
     }
 
-    private void bindListWhere(PreparedStatement ps, String material, String displayName, TradeType tradeType,
+    private void bindListWhere(PreparedStatement ps, String material, String displayName, String query,
+                               String enchantment, int minEnchantmentLevel, int enchantmentLevel,
+                               ItemType itemType, TradeType tradeType,
                                String serverStr, boolean hideUnavailable) throws SQLException {
         boolean isBuy = tradeType == TradeType.BUY;
+        int itemTypeCode = itemType.queryCode();
         ps.setString(1, material);
-        ps.setString(2, material);
-        ps.setString(3, displayName);
-        ps.setString(4, displayName);
-        ps.setInt(5, isBuy ? 1 : 0);
-        ps.setInt(6, isBuy ? 1 : 0);
-        ps.setString(7, serverStr);
-        ps.setString(8, serverStr);
-        ps.setInt(9, hideUnavailable && tradeType == TradeType.SELL ? 1 : 0);
-        ps.setInt(10, hideUnavailable && tradeType == TradeType.BUY ? 1 : 0);
+        ps.setString(2, displayName);
+        ps.setString(3, query);
+        ps.setString(4, enchantment);
+        ps.setInt(5, minEnchantmentLevel);
+        ps.setInt(6, enchantmentLevel);
+        ps.setInt(7, itemTypeCode);
+        ps.setInt(8, isBuy ? 1 : 0);
+        ps.setString(9, serverStr);
+        ps.setInt(10, hideUnavailable && tradeType == TradeType.SELL ? 1 : 0);
+        ps.setInt(11, hideUnavailable && tradeType == TradeType.BUY ? 1 : 0);
     }
 
-    public List<ChestShopRow> find(String material, String displayName, TradeType tradeType, String serverStr,
+    public List<ChestShopRow> find(String material, String displayName, String query, String enchantment,
+                                   int minEnchantmentLevel, int enchantmentLevel,
+                                   ItemType itemType, TradeType tradeType,
+                                   String serverStr,
                                    boolean hideUnavailable, SortBy sortBy, Integer limit, Integer offset) throws SQLException {
         String sql = SELECT + LIST_WHERE + orderBy(sortBy, tradeType);
         if (limit != null) sql += "LIMIT " + limit + " OFFSET " + offset;
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
-                bindListWhere(ps, material, displayName, tradeType, serverStr, hideUnavailable);
+                bindListWhere(ps, material, displayName, query, enchantment, minEnchantmentLevel, enchantmentLevel,
+                        itemType, tradeType, serverStr, hideUnavailable);
                 return mapRows(ps.executeQuery());
             }
         }
     }
 
-    public long count(String material, String displayName, TradeType tradeType, String serverStr,
+    public long count(String material, String displayName, String query, String enchantment,
+                      int minEnchantmentLevel, int enchantmentLevel,
+                      ItemType itemType, TradeType tradeType, String serverStr,
                       boolean hideUnavailable) throws SQLException {
         String sql = "SELECT COUNT(*) FROM chest_shop_sign cs " + LIST_WHERE;
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
-                bindListWhere(ps, material, displayName, tradeType, serverStr, hideUnavailable);
+                bindListWhere(ps, material, displayName, query, enchantment, minEnchantmentLevel, enchantmentLevel,
+                        itemType, tradeType, serverStr, hideUnavailable);
                 try (ResultSet rs = ps.executeQuery()) {
                     return rs.next() ? rs.getLong(1) : 0;
                 }
             }
         }
+    }
+
+    /** Backward-compatible overload for callers using only a minimum level. */
+    public List<ChestShopRow> find(String material, String displayName, String query, String enchantment,
+                                   int minEnchantmentLevel, ItemType itemType, TradeType tradeType,
+                                   String serverStr, boolean hideUnavailable, SortBy sortBy,
+                                   Integer limit, Integer offset) throws SQLException {
+        return find(material, displayName, query, enchantment, minEnchantmentLevel, 0,
+                itemType, tradeType, serverStr, hideUnavailable, sortBy, limit, offset);
+    }
+
+    /** Backward-compatible overload for callers using only a minimum level. */
+    public long count(String material, String displayName, String query, String enchantment,
+                      int minEnchantmentLevel, ItemType itemType, TradeType tradeType, String serverStr,
+                      boolean hideUnavailable) throws SQLException {
+        return count(material, displayName, query, enchantment, minEnchantmentLevel, 0,
+                itemType, tradeType, serverStr, hideUnavailable);
     }
 
     /**
@@ -149,6 +245,59 @@ public class ShopRepository {
                 return result;
             }
         }
+    }
+
+    /** Distinct searchable enchantment keys, e.g. "fire_aspect". */
+    public List<String> distinctEnchantmentNames(TradeType tradeType, String serverStr) throws SQLException {
+        List<String> result = new ArrayList<>();
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (EnchantmentOption option : distinctEnchantmentOptions(tradeType, serverStr)) {
+            if (seen.add(option.name())) result.add(option.name());
+        }
+        return result;
+    }
+
+    /** Distinct searchable enchantment name/level pairs for search suggestions. */
+    public List<EnchantmentOption> distinctEnchantmentOptions(TradeType tradeType, String serverStr) throws SQLException {
+        return distinctEnchantmentOptions("", "", "", "", ItemType.ALL,
+                tradeType, serverStr, false);
+    }
+
+    /**
+     * Distinct searchable enchantment name/level pairs from the complete set
+     * of rows matching the supplied search context. Exact/minimum levels are
+     * deliberately omitted so the caller can present every available level
+     * as a result-derived facet.
+     */
+    public List<EnchantmentOption> distinctEnchantmentOptions(
+            String material, String displayName, String query, String enchantment,
+            ItemType itemType, TradeType tradeType, String serverStr,
+            boolean hideUnavailable) throws SQLException {
+        String sql = "SELECT DISTINCT lower(json_extract(" + SAFE_FACET_ENCHANT_OBJECT +
+                ", '$.name')) AS name, " +
+                "CAST(json_extract(" + SAFE_FACET_ENCHANT_OBJECT + ", '$.level') AS INTEGER) AS level " +
+                "FROM chest_shop_sign cs, " +
+                SEARCH_ENCHANTS + " facet_enchant " +
+                LIST_WHERE +
+                "AND facet_enchant.type = 'object' " +
+                "AND json_type(" + SAFE_FACET_ENCHANT_OBJECT + ", '$.name') = 'text' " +
+                "AND trim(json_extract(" + SAFE_FACET_ENCHANT_OBJECT + ", '$.name')) <> '' " +
+                "AND CAST(json_extract(" + SAFE_FACET_ENCHANT_OBJECT + ", '$.level') AS INTEGER) > 0 " +
+                "ORDER BY name, level";
+        synchronized (db.lock) {
+            try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
+                bindListWhere(ps, material, displayName, query, enchantment,
+                        0, 0, itemType, tradeType, serverStr, hideUnavailable);
+                List<EnchantmentOption> result = new ArrayList<>();
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) result.add(new EnchantmentOption(rs.getString(1), rs.getInt(2)));
+                }
+                return result;
+            }
+        }
+    }
+
+    public record EnchantmentOption(String name, int level) {
     }
 
     private static final String OWNED_WHERE =

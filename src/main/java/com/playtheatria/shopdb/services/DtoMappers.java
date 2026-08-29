@@ -27,8 +27,19 @@ public final class DtoMappers {
         dto.setMaterial(row.material);
         dto.setBaseMaterial(row.baseMaterial);
         if (row.itemDetails != null) {
-            dto.setItemDetails(GSON.fromJson(row.itemDetails,
-                    com.playtheatria.shopdb.models.ItemDetailsDto.class));
+            try {
+                com.playtheatria.shopdb.models.ItemDetailsDto details = GSON.fromJson(row.itemDetails,
+                        com.playtheatria.shopdb.models.ItemDetailsDto.class);
+                if (details != null) {
+                    // Search-only metadata is used by repository queries and
+                    // autocomplete, not rendered or exposed as item tooltip data.
+                    details.setSearchEnchants(null);
+                }
+                dto.setItemDetails(details);
+            } catch (RuntimeException ignored) {
+                // Imported databases may contain one malformed legacy value.
+                // Keep the shop usable; metadata search already ignores it.
+            }
         }
 
         // The old DTO's getOwner() lazily created an empty object, so "owner" is

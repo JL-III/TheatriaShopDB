@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   getOptions,
@@ -13,6 +13,9 @@ import {
   getTotalPages,
   fetchMaterials,
   setMaterial,
+  findExactSearchOption,
+  isValidNewSearchOption,
+  matchesSearchOption,
 } from '../state/chestShopsSlice';
 
 import { Select } from '../shared/select';
@@ -33,6 +36,62 @@ const ChestShops = () => {
   const errorMessage = useSelector(getErrorMessage);
   const loading = useSelector(getLoading);
   const materials = useSelector(getMaterials);
+  const [searchText, setSearchText] = useState(
+    options.material ? options.material.label : ''
+  );
+
+  const applySearchOption = (option) => {
+    if (!option) {
+      setSearchText('');
+      dispatch(setMaterial(undefined));
+      return;
+    }
+
+    setSearchText(option.label);
+    dispatch(setMaterial(option));
+  };
+
+  const searchAllDetails = (inputValue) => {
+    const query = inputValue.trim();
+    if (!query) return;
+
+    // CreatableSelect normally routes exact suggestions through onChange.
+    // This fallback keeps Enter deterministic if the menu state changes while
+    // suggestions are arriving.
+    const exactOption = findExactSearchOption(materials.results, query);
+    applySearchOption(
+      exactOption || { value: query, label: query, kind: 'query' }
+    );
+  };
+
+  const updateSearchText = (inputValue, { action }) => {
+    // react-select asks to clear its input after a selection. Ignore that
+    // internal transition: the field is an editable query, not a hidden
+    // selected token.
+    if (action === 'input-change') {
+      setSearchText(inputValue);
+      if (!inputValue && options.material) dispatch(setMaterial(undefined));
+    }
+    return inputValue;
+  };
+
+  const formatSearchOption = (option) => {
+    const type =
+      option.kind === 'enchantment'
+        ? 'Enchantment'
+        : option.kind === 'name'
+          ? 'Custom item'
+          : option.kind === 'material'
+            ? 'Item'
+            : 'Search';
+
+    return (
+      <div className="search-option">
+        <span className="search-option-label">{option.label}</span>
+        <span className="search-option-type">{type}</span>
+      </div>
+    );
+  };
 
   useEffect(() => {
     dispatch(fetchChestShops());
@@ -49,17 +108,48 @@ const ChestShops = () => {
           loading={loading}
         />
 
-        <Select
-          className="item-selector"
-          placeholder="Item Name..."
-          onFocus={() => dispatch(fetchMaterials())}
-          value={options.material}
-          setValue={(e, v) => dispatch(setMaterial(e))}
-          loading={materials.loading}
-          options={materials.results}
-          isClearable
-          windowed
-        />
+        <div className="item-selector-wrapper">
+          <Select
+            className="item-selector"
+            label="Search items, enchantments, and lore"
+            placeholder="Item, enchantment, or lore..."
+            onFocus={() => dispatch(fetchMaterials())}
+            value={null}
+            setValue={applySearchOption}
+            inputValue={searchText}
+            onInputChange={updateSearchText}
+            loading={materials.loading}
+            options={materials.results}
+            windowed
+            creatable
+            allowCreateWhileLoading
+            createOptionPosition="first"
+            formatCreateLabel={(inputValue) =>
+              `Search for "${inputValue.trim()}"`
+            }
+            isValidNewOption={(inputValue) =>
+              isValidNewSearchOption(materials.results, inputValue)
+            }
+            onCreateOption={searchAllDetails}
+            filterOption={matchesSearchOption}
+            formatOptionLabel={formatSearchOption}
+            controlShouldRenderValue={false}
+            selectInputTextOnFocus={false}
+            keepInputVisible
+          />
+
+          {searchText && (
+            <button
+              type="button"
+              className="item-search-clear"
+              aria-label="Clear item search"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => applySearchOption(undefined)}
+            >
+              &times;
+            </button>
+          )}
+        </div>
       </div>
 
       {loading && <Loading className="mt-5" />}
