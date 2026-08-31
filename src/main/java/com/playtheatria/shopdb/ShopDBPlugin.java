@@ -11,8 +11,12 @@ import com.playtheatria.shopdb.display.ShopInfoDisplayService;
 import com.playtheatria.shopdb.services.ApiKeyValidator;
 import com.playtheatria.shopdb.services.ApiUserProvisioner;
 import com.playtheatria.shopdb.services.ChestShopIngestService;
+import com.playtheatria.shopdb.services.PlayerShopLifecycleService;
 import com.playtheatria.shopdb.services.RegionLogicService;
 import com.playtheatria.shopdb.updater.EventBuffer;
+import com.playtheatria.shopdb.updater.LandsLifecycleListener;
+import com.playtheatria.shopdb.updater.LandsPlayerShopResolver;
+import com.playtheatria.shopdb.updater.PlayerShopResolver;
 import com.playtheatria.shopdb.updater.ShopDBClient;
 import com.playtheatria.shopdb.updater.ShopDBCommands;
 import com.playtheatria.shopdb.updater.ShopDBEditCommands;
@@ -35,6 +39,7 @@ public final class ShopDBPlugin extends JavaPlugin {
     private EventBuffer eventBuffer;
     private ShopUpdater shopUpdater;
     private ShopEventsListener shopEventsListener;
+    private LandsLifecycleListener landsLifecycleListener;
     private ShopDBCommands updaterCommands;
     private ShopDBEditCommands editCommands;
     private ShopRescanner rescanner;
@@ -109,6 +114,7 @@ public final class ShopDBPlugin extends JavaPlugin {
             if (getConfig().getBoolean("updater.enabled", true)) {
                 startUpdater(port, apiKey, shops);
             }
+            startLandsLifecycle(db);
             return true;
         } catch (Exception e) {
             getLogger().severe("Failed to start ShopDB: " + e);
@@ -140,19 +146,60 @@ public final class ShopDBPlugin extends JavaPlugin {
             eventBuffer = new EventBuffer(new File(getDataFolder(), "shop_events.db"), config.cacheSize, getLogger());
             ShopDBClient client = new ShopDBClient(config, getLogger());
 
-            shopEventsListener = new ShopEventsListener(eventBuffer);
+            PlayerShopResolver playerShops = PlayerShopResolver.unavailable();
+            if (getServer().getPluginManager().isPluginEnabled("Lands")) {
+                try {
+                    playerShops = new LandsPlayerShopResolver(this);
+                    getLogger().info("Lands integration enabled for player shops.");
+                } catch (RuntimeException | LinkageError e) {
+                    getLogger().warning("Could not enable Lands integration: " + e.getMessage());
+                }
+            } else {
+                getLogger().info("Lands not found - player shop publishing is disabled.");
+            }
+
+            shopEventsListener = new ShopEventsListener(eventBuffer, playerShops);
             getServer().getPluginManager().registerEvents(shopEventsListener, this);
-            updaterCommands = new ShopDBCommands(client);
             editCommands = new ShopDBEditCommands(eventBuffer);
 
             shopUpdater = new ShopUpdater(this, eventBuffer, client, config, getLogger());
             shopUpdater.startSubmitting();
             rescanner = new ShopRescanner(this, shops, eventBuffer, shopEventsListener, shopUpdater,
                     getConfig().getInt("updater.rescan-pace-ticks", 4), getLogger());
+            ShopRescanner activeRescanner = rescanner;
+            updaterCommands = new ShopDBCommands(client, playerShops, () ->
+                    getServer().getScheduler().runTask(this, () -> {
+                        String result = activeRescanner.start();
+                        getLogger().info("Shop publication refresh: " + result);
+                    }));
             getLogger().info("Shop event updater started (posting every " + config.intervalMinutes + " minute(s)).");
         } catch (Exception e) {
             getLogger().severe("Failed to start shop event updater: " + e);
         }
+    }
+
+    /** Registers lifecycle safety independently of the optional event updater. */
+    private void startLandsLifecycle(Db lifecycleDb) {
+        if (!getServer().getPluginManager().isPluginEnabled("Lands")) return;
+
+        try {
+            PlayerShopLifecycleService lifecycle = new PlayerShopLifecycleService(lifecycleDb);
+            landsLifecycleListener = new LandsLifecycleListener(
+                    this, lifecycle, this::requestLifecycleRescan, getLogger());
+            getServer().getPluginManager().registerEvents(landsLifecycleListener, this);
+            getLogger().info("Lands lifecycle reconciliation enabled.");
+        } catch (RuntimeException | LinkageError e) {
+            landsLifecycleListener = null;
+            getLogger().warning("Could not enable Lands lifecycle reconciliation: " + e.getMessage());
+        }
+    }
+
+    private void requestLifecycleRescan() {
+        ShopRescanner activeRescanner = rescanner;
+        if (activeRescanner == null || !isEnabled()) return;
+
+        String result = activeRescanner.start();
+        getLogger().info("Shop lifecycle refresh: " + result);
     }
 
     /** Flushes the event buffer and stops all services. Safe to call repeatedly. */
@@ -174,6 +221,11 @@ public final class ShopDBPlugin extends JavaPlugin {
         if (shopEventsListener != null) {
             HandlerList.unregisterAll(shopEventsListener);
             shopEventsListener = null;
+        }
+        if (landsLifecycleListener != null) {
+            landsLifecycleListener.deactivate();
+            HandlerList.unregisterAll(landsLifecycleListener);
+            landsLifecycleListener = null;
         }
         updaterCommands = null;
         editCommands = null;

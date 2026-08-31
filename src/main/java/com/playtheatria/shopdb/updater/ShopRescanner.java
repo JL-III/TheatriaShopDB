@@ -46,6 +46,7 @@ public class ShopRescanner {
 
     private volatile boolean running;
     private volatile boolean cancelled;
+    private final FollowUpRequest followUpRequest = new FollowUpRequest();
     private Deque<ChunkGroup> queue;
     private int totalChunks;
     private int refreshed;
@@ -69,7 +70,11 @@ public class ShopRescanner {
     /** Starts a scan; returns a message describing what happened. */
     public synchronized String start() {
         if (running) {
-            return "A rescan is already running.";
+            // Coalesce any number of requests during this run into exactly one
+            // follow-up. Publication changes must not be lost merely because an
+            // earlier administrative or automatic scan is still in progress.
+            followUpRequest.queue();
+            return "A rescan is already running; one follow-up rescan has been queued.";
         }
 
         World world = findTrackedWorld();
@@ -111,6 +116,7 @@ public class ShopRescanner {
     public synchronized boolean cancel() {
         if (!running) return false;
         cancelled = true;
+        followUpRequest.clear();
         return true;
     }
 
@@ -175,12 +181,25 @@ public class ShopRescanner {
         synchronized (this) {
             if (!running) return;
             running = false;
-        }
-        String outcome = cancelled ? "cancelled" : "complete";
-        logger.info("Rescan " + outcome + ": " + refreshed + " shops refreshed, "
-                + stale + " stale rows queued for deletion.");
-        if (updater != null && plugin.isEnabled()) {
-            updater.flushAsync();
+            // cancel() explicitly clears anything queued at that moment. A new
+            // publication request can still arrive while the cancelled run is
+            // winding down, and that newer request must get its follow-up.
+            boolean runFollowUp = followUpRequest.consume();
+
+            String outcome = cancelled ? "cancelled" : "complete";
+            logger.info("Rescan " + outcome + ": " + refreshed + " shops refreshed, "
+                    + stale + " stale rows queued for deletion.");
+            if (updater != null && plugin.isEnabled()) {
+                updater.flushAsync();
+            }
+
+            // start() is synchronized and Java monitors are re-entrant. Starting
+            // while still holding this monitor prevents a concurrent caller from
+            // slipping in between this run and its promised follow-up.
+            if (runFollowUp && plugin.isEnabled()) {
+                logger.info("Starting the queued follow-up rescan.");
+                logger.info("Follow-up rescan: " + start());
+            }
         }
     }
 
@@ -201,6 +220,25 @@ public class ShopRescanner {
         ChunkGroup(int chunkX, int chunkZ) {
             this.chunkX = chunkX;
             this.chunkZ = chunkZ;
+        }
+    }
+
+    /** Boolean latch that coalesces any number of overlapping requests into one run. */
+    static final class FollowUpRequest {
+        private boolean queued;
+
+        synchronized void queue() {
+            queued = true;
+        }
+
+        synchronized boolean consume() {
+            boolean result = queued;
+            queued = false;
+            return result;
+        }
+
+        synchronized void clear() {
+            queued = false;
         }
     }
 }

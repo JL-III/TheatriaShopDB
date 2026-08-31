@@ -8,6 +8,8 @@ import java.util.Set;
 public class RegionRequest {
     private String name;
     private String server;
+    private ShopLocationType type = ShopLocationType.MARKET_STALL;
+    private String externalId;
     private Location iBounds;
     private Location oBounds;
     @SerializedName("owners")
@@ -20,6 +22,14 @@ public class RegionRequest {
 
     public String getServer() {
         return server;
+    }
+
+    public ShopLocationType getType() {
+        return type == null ? ShopLocationType.MARKET_STALL : type;
+    }
+
+    public String getExternalId() {
+        return externalId == null || externalId.isBlank() ? name : externalId;
     }
 
     public Location getiBounds() {
@@ -46,6 +56,14 @@ public class RegionRequest {
         this.server = server;
     }
 
+    public void setType(ShopLocationType type) {
+        this.type = type;
+    }
+
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
+    }
+
     public void setiBounds(Location iBounds) {
         this.iBounds = iBounds;
     }
@@ -67,16 +85,19 @@ public class RegionRequest {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         RegionRequest that = (RegionRequest) o;
-        return Objects.equals(name, that.name) && Objects.equals(server, that.server);
+        return Objects.equals(server, that.server)
+                && getType() == that.getType()
+                && Objects.equals(getExternalId(), that.getExternalId());
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(name, server);
+        return Objects.hash(server, getType(), getExternalId());
     }
 
     @Override
     public String toString() {
-        return "RegionRequest{name='" + name + "', server='" + server + "'}";
+        return "RegionRequest{name='" + name + "', server='" + server + "', type=" + getType()
+                + ", externalId='" + getExternalId() + "'}";
     }
 }

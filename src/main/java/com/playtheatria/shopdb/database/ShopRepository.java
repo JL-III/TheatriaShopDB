@@ -3,6 +3,7 @@ package com.playtheatria.shopdb.database;
 import com.playtheatria.shopdb.models.ItemType;
 import com.playtheatria.shopdb.models.SortBy;
 import com.playtheatria.shopdb.models.TradeType;
+import com.playtheatria.shopdb.models.ShopLocationType;
 
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -53,7 +54,7 @@ public class ShopRepository {
                     "cs.buy_price_each, cs.sell_price_each, cs.is_full, cs.is_hidden, " +
                     "cs.is_buy_sign, cs.is_sell_sign, cs.base_material, cs.item_details, " +
                     "cs.display_name_plain, " +
-                    "p.name AS owner_name, r.name AS town_name " +
+                    "p.name AS owner_name, r.name AS town_name, r.location_type AS town_type " +
                     "FROM chest_shop_sign cs " +
                     "LEFT JOIN player p ON p.id = cs.owner_id " +
                     "LEFT JOIN region r ON r.id = cs.town_id ";
@@ -353,6 +354,17 @@ public class ShopRepository {
         }
     }
 
+    /** All shops currently associated with a location, including hidden rows. */
+    public List<ChestShopRow> findAssignedToRegion(long townId) throws SQLException {
+        String sql = SELECT + "WHERE cs.town_id = ?";
+        synchronized (db.lock) {
+            try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
+                ps.setLong(1, townId);
+                return mapRows(ps.executeQuery());
+            }
+        }
+    }
+
     public long countInRegion(long townId, TradeType tradeType) throws SQLException {
         String sql = "SELECT COUNT(*) FROM chest_shop_sign cs " + IN_REGION_WHERE;
         boolean isBuy = tradeType == TradeType.BUY;
@@ -582,6 +594,7 @@ public class ShopRepository {
                 row.displayNamePlain = rs.getString("display_name_plain");
                 row.ownerName = rs.getString("owner_name");
                 row.townName = rs.getString("town_name");
+                row.townType = ShopLocationType.fromString(rs.getString("town_type"));
                 result.add(row);
             }
         }

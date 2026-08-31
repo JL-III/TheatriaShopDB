@@ -9,9 +9,13 @@ the same pattern as MC-Ledger. One jar in `plugins/` does everything:
   them in `shop_events.db`, and posts them to its own API on the configured
   interval and on shutdown — the ShopDB-Updater plugin's full pipeline,
   absorbed (requires the ChestShop and WorldGuard plugins; without them the
-  updater half disables itself and the website/API still run);
-- provides `/shopdb list|unlist <region>` and `/shopdbedit delete x y z`
-  (permission `theatria.shopdb.admin`).
+  updater half disables itself and the website/API still run); when Lands is
+  installed, chest shops on player-owned lands can also be published;
+- lets the exact Lands owner use `/shopdb list` or `/shopdb unlist` while
+  standing inside their land;
+- provides admin-only `/shopdb list|unlist <market-stall>`, `/shopdb reload`,
+  `/shopdb rescan`, and `/shopdbedit delete x y z` workflows (permission
+  `theatria.shopdb.admin`).
 
 No cloud services, no separate updater plugin, no shell access needed.
 
@@ -58,6 +62,12 @@ Display-visible enchantments are searchable normally. Hidden enchantments are
 searchable only when trusted Titan lore (`Ancient Power Ω`) independently
 confirms the enchantment and level, keeping cosmetic sheen enchants out of
 search results.
+
+Current WorldGuard locations are migrated to `MARKET_STALL`. Lands locations
+are stored separately as `PLAYER_SHOP` using the Land ULID, so renames and
+same-named market/player locations cannot collide. Player publishing is
+owner-only by UUID; trusted Lands members and ShopDB admin permission do not
+substitute for ownership.
 
 ## Develop
 

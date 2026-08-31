@@ -6,6 +6,9 @@ import java.util.List;
 public class RegionDto {
     private String name;
     private Server server;
+    private ShopLocationType type;
+    private String externalId;
+    private String travelCommand;
     private Location iBounds;
     private Location oBounds;
     private int numChestShops;
@@ -19,6 +22,18 @@ public class RegionDto {
 
     public Server getServer() {
         return server;
+    }
+
+    public ShopLocationType getType() {
+        return type;
+    }
+
+    public String getExternalId() {
+        return externalId;
+    }
+
+    public String getTravelCommand() {
+        return travelCommand;
     }
 
     public Location getiBounds() {
@@ -51,6 +66,18 @@ public class RegionDto {
 
     public void setServer(Server server) {
         this.server = server;
+    }
+
+    public void setType(ShopLocationType type) {
+        this.type = type;
+    }
+
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
+    }
+
+    public void setTravelCommand(String travelCommand) {
+        this.travelCommand = travelCommand;
     }
 
     public void setiBounds(Location iBounds) {

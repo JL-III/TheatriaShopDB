@@ -12,6 +12,7 @@ import com.playtheatria.shopdb.models.PlayerRegionDto;
 import com.playtheatria.shopdb.models.RegionDto;
 import com.playtheatria.shopdb.models.RegionPlayerDto;
 import com.playtheatria.shopdb.models.Server;
+import com.playtheatria.shopdb.models.ShopLocationType;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
@@ -51,6 +52,8 @@ public final class DtoMappers {
         if (row.townName != null) {
             ChestShopRegionDto town = new ChestShopRegionDto();
             town.setName(row.townName);
+            town.setType(effectiveType(row.townType));
+            town.setTravelCommand(travelCommand(row.townName, row.townType));
             dto.setTown(town);
         }
 
@@ -76,6 +79,8 @@ public final class DtoMappers {
             PlayerRegionDto townDto = new PlayerRegionDto();
             townDto.setName(town.name);
             townDto.setServer(town.server == null ? null : Server.valueOf(town.server));
+            townDto.setType(effectiveType(town.type));
+            townDto.setTravelCommand(travelCommand(town.name, town.type));
             townDtos.add(townDto);
         }
         dto.setTowns(townDtos);
@@ -86,6 +91,9 @@ public final class DtoMappers {
         RegionDto dto = new RegionDto();
         dto.setName(region.name);
         dto.setServer(region.server == null ? null : Server.valueOf(region.server));
+        dto.setType(effectiveType(region.type));
+        dto.setExternalId(region.externalId);
+        dto.setTravelCommand(travelCommand(region.name, region.type));
         dto.setiBounds(new Location(region.iX, region.iY, region.iZ));
         dto.setoBounds(new Location(region.oX, region.oY, region.oZ));
         dto.setNumChestShops(numChestShops);
@@ -101,6 +109,17 @@ public final class DtoMappers {
 
         dto.setLastUpdated(region.lastUpdated == null ? null : new Timestamp(region.lastUpdated));
         return dto;
+    }
+
+    private static ShopLocationType effectiveType(ShopLocationType type) {
+        return type == null ? ShopLocationType.MARKET_STALL : type;
+    }
+
+    private static String travelCommand(String name, ShopLocationType type) {
+        if (name == null) return null;
+        return effectiveType(type) == ShopLocationType.PLAYER_SHOP
+                ? "/lands spawn " + name.replace(' ', '_')
+                : "/warp " + name;
     }
 
     private DtoMappers() {

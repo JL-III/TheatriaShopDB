@@ -8,6 +8,7 @@ import com.playtheatria.shopdb.models.EventType;
 import com.playtheatria.shopdb.models.RegionRequest;
 import com.playtheatria.shopdb.models.Server;
 import com.playtheatria.shopdb.models.ShopEvent;
+import com.playtheatria.shopdb.models.ShopLocationType;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -96,15 +97,23 @@ public class ChestShopIngestService {
     }
 
     public void linkAndShowChestShops(RegionRow region) throws SQLException {
-        for (ChestShopRow shop : shopsIn(region)) {
+        for (ChestShopRow shop : shopsForPublicationChange(region)) {
             shops.setTownAndHidden(shop.id, region.id, false);
         }
     }
 
     public void linkAndHideChestShops(RegionRow region) throws SQLException {
-        for (ChestShopRow shop : shopsIn(region)) {
+        for (ChestShopRow shop : shopsForPublicationChange(region)) {
             shops.setTownAndHidden(shop.id, region.id, true);
         }
+    }
+
+    private List<ChestShopRow> shopsForPublicationChange(RegionRow region) throws SQLException {
+        if (region.type == ShopLocationType.PLAYER_SHOP) {
+            // Lands may be disconnected or contain holes; never use its bounding box for visibility.
+            return shops.findAssignedToRegion(region.id);
+        }
+        return shopsIn(region);
     }
 
     private List<ChestShopRow> shopsIn(RegionRow region) throws SQLException {
@@ -152,7 +161,7 @@ public class ChestShopIngestService {
         List<RegionRow> shopRegions = new ArrayList<>();
         if (event.getRegions() != null) {
             for (RegionRequest regionReq : event.getRegions()) {
-                RegionRow r = regions.get(regionReq.getName() + "|" + regionReq.getServer());
+                RegionRow r = regions.get(RegionLogicService.identityKey(regionReq));
                 if (r != null) shopRegions.add(r);
             }
         }

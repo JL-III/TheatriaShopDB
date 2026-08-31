@@ -14,8 +14,8 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * /shopdb — handles `reload` itself, delegates `list`/`unlist` to the
- * updater's command handler, and provides tab completion for all of it.
+ * /shopdb — player owners publish the Lands claim they are standing in;
+ * admins may additionally manage named WorldGuard market stalls and services.
  */
 public class ShopDBRootCommand implements CommandExecutor, TabCompleter {
     private static final String ADMIN_PERMISSION = "theatria.shopdb.admin";
@@ -76,9 +76,12 @@ public class ShopDBRootCommand implements CommandExecutor, TabCompleter {
 
         if (args.length == 1) {
             String prefix = args[0].toLowerCase(Locale.ROOT);
-            for (String option : new String[]{"list", "unlist", "reload", "rescan"}) {
-                if (("reload".equals(option) || "rescan".equals(option))
-                        && !sender.hasPermission(ADMIN_PERMISSION)) continue;
+            List<String> options = new ArrayList<>(List.of("list", "unlist"));
+            if (sender.hasPermission(ADMIN_PERMISSION)) {
+                options.add("reload");
+                options.add("rescan");
+            }
+            for (String option : options) {
                 if (option.startsWith(prefix)) result.add(option);
             }
             return result;
@@ -91,7 +94,9 @@ public class ShopDBRootCommand implements CommandExecutor, TabCompleter {
             return result;
         }
 
-        if (args.length == 2 && ("list".equalsIgnoreCase(args[0]) || "unlist".equalsIgnoreCase(args[0]))) {
+        if (args.length == 2
+                && sender.hasPermission(ADMIN_PERMISSION)
+                && ("list".equalsIgnoreCase(args[0]) || "unlist".equalsIgnoreCase(args[0]))) {
             ShopDBCommands delegate = plugin.getUpdaterCommands();
             if (delegate != null) {
                 return delegate.completeRegionNames(args[1]);

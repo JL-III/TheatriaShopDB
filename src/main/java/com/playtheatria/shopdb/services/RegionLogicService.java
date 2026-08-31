@@ -6,6 +6,7 @@ import com.playtheatria.shopdb.database.RegionRow;
 import com.playtheatria.shopdb.models.Location;
 import com.playtheatria.shopdb.models.RegionRequest;
 import com.playtheatria.shopdb.models.Server;
+import com.playtheatria.shopdb.models.ShopLocationType;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ public class RegionLogicService {
         for (RegionRequest request : requests) {
             RegionRow region = convertAndPersist(request, null, knownPlayers);
             if (region != null) {
-                result.put(request.getName() + "|" + request.getServer(), region);
+                result.put(identityKey(request), region);
             }
         }
         return result;
@@ -67,26 +68,19 @@ public class RegionLogicService {
         Server server = servers.get(request.getServer());
         Location[] bounds = sortBounds(request.getiBounds(), request.getoBounds());
 
-        RegionRow region = regions.findByServerEnumAndName(server.name(), request.getName());
+        RegionRow region = new RegionRow();
 
-        if (region == null) {
-            region = new RegionRow();
-            region.active = Boolean.FALSE;
-            region.name = request.getName().toLowerCase(Locale.ROOT);
-            region.server = server.name();
-            region.iX = bounds[0].getX();
-            region.iY = bounds[0].getY();
-            region.iZ = bounds[0].getZ();
-            region.oX = bounds[1].getX();
-            region.oY = bounds[1].getY();
-            region.oZ = bounds[1].getZ();
-        }
-
-        if (active == Boolean.TRUE) {
-            region.active = true;
-        } else if (active == Boolean.FALSE) {
-            region.active = false;
-        }
+        // Name and claim shape are mutable (especially for Lands); stable identity is externalId.
+        region.name = request.getName().toLowerCase(Locale.ROOT);
+        region.server = server.name();
+        region.type = request.getType();
+        region.externalId = request.getExternalId();
+        region.iX = bounds[0].getX();
+        region.iY = bounds[0].getY();
+        region.iZ = bounds[0].getZ();
+        region.oX = bounds[1].getX();
+        region.oY = bounds[1].getY();
+        region.oZ = bounds[1].getZ();
 
         List<Long> mayorIds = new ArrayList<>();
         if (knownPlayers != null) {
@@ -101,33 +95,20 @@ public class RegionLogicService {
         }
 
         region.lastUpdated = System.currentTimeMillis();
-        regions.upsert(region);
+        region = regions.upsertByIdentity(region, active);
         regions.setMayors(region.id, mayorIds);
         return region;
     }
 
     public RegionRow findActiveOrSmallest(List<RegionRow> candidates) {
         if (candidates == null || candidates.isEmpty()) return null;
-
-        long smallestSize = 0;
-        int smallestIndex = 0;
-
-        for (int i = 0; i < candidates.size(); i++) {
-            RegionRow r = candidates.get(i);
-
-            if (Boolean.TRUE.equals(r.active)) return r;
-
-            long x = Math.abs((long) r.iX - r.oX);
-            long y = Math.abs((long) r.iY - r.oY);
-            long z = Math.abs((long) r.iZ - r.oZ);
-            long size = x * y * z;
-            if (smallestSize == 0 || size < smallestSize) {
-                smallestSize = size;
-                smallestIndex = i;
-            }
-        }
-
-        return candidates.get(smallestIndex);
+        return candidates.stream()
+                .min(java.util.Comparator
+                        .comparingInt(RegionLogicService::associationPriority)
+                        .thenComparingLong(RegionLogicService::volume)
+                        .thenComparing(r -> r.externalId == null ? r.name : r.externalId,
+                                String.CASE_INSENSITIVE_ORDER))
+                .orElse(null);
     }
 
     public boolean regionRequestIsValid(RegionRequest regionRequest) {
@@ -174,6 +155,28 @@ public class RegionLogicService {
         }
 
         return true;
+    }
+
+    public static String identityKey(RegionRequest request) {
+        return request.getServer() + "|" + request.getType() + "|" + request.getExternalId();
+    }
+
+    private static int associationPriority(RegionRow region) {
+        boolean active = Boolean.TRUE.equals(region.active);
+        ShopLocationType type = region.type == null ? ShopLocationType.MARKET_STALL : region.type;
+        if (active && type == ShopLocationType.MARKET_STALL) return 0;
+        if (active) return 1;
+        if (type == ShopLocationType.PLAYER_SHOP) return 2;
+        return 3;
+    }
+
+    private static long volume(RegionRow region) {
+        long x = Math.max(1L, Math.abs((long) region.iX - region.oX) + 1L);
+        long y = Math.max(1L, Math.abs((long) region.iY - region.oY) + 1L);
+        long z = Math.max(1L, Math.abs((long) region.iZ - region.oZ) + 1L);
+        if (x > Long.MAX_VALUE / y) return Long.MAX_VALUE;
+        long xy = x * y;
+        return z > Long.MAX_VALUE / xy ? Long.MAX_VALUE : xy * z;
     }
 
     private Location[] sortBounds(Location l1, Location l2) {

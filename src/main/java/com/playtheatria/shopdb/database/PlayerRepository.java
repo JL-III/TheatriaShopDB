@@ -86,7 +86,7 @@ public class PlayerRepository {
         } else if (sortBy == SortBy.NUM_REGIONS) {
             sql = "SELECT p.id, p.name FROM player p " +
                     "LEFT JOIN region_mayors rm ON rm.mayors_id = p.id " +
-                    "LEFT JOIN region t ON t.id = rm.towns_id " +
+                    "LEFT JOIN region t ON t.id = rm.towns_id AND t.active = 1 " +
                     "WHERE (? = '' OR p.name = ?) AND " + HAS_CHEST_SHOPS +
                     "GROUP BY p.id ORDER BY COUNT(t.id) DESC, p.name ASC";
         } else {
@@ -153,8 +153,10 @@ public class PlayerRepository {
     }
 
     public List<RegionRow> townsOf(long playerId) throws SQLException {
-        String sql = "SELECT r.id, r.name, r.server, r.i_x, r.i_y, r.i_z, r.o_x, r.o_y, r.o_z, r.active, r.last_updated " +
-                "FROM region_mayors rm JOIN region r ON r.id = rm.towns_id WHERE rm.mayors_id = ?";
+        String sql = "SELECT r.id, r.name, r.server, r.location_type, r.external_id, " +
+                "r.i_x, r.i_y, r.i_z, r.o_x, r.o_y, r.o_z, r.active, r.last_updated " +
+                "FROM region_mayors rm JOIN region r ON r.id = rm.towns_id " +
+                "WHERE rm.mayors_id = ? AND r.active = 1";
         synchronized (db.lock) {
             try (PreparedStatement ps = db.connection.prepareStatement(sql)) {
                 ps.setLong(1, playerId);

@@ -1,5 +1,7 @@
 package com.playtheatria.shopdb.updater;
 
+import com.playtheatria.shopdb.models.ShopLocationType;
+
 import java.util.Set;
 
 /**
@@ -9,6 +11,8 @@ import java.util.Set;
 public class UpdaterRegion {
     private String name;
     private String server;
+    private ShopLocationType type = ShopLocationType.MARKET_STALL;
+    private String externalId;
     private Set<String> owners;
     private UpdaterBounds iBounds;
     private UpdaterBounds oBounds;
@@ -27,12 +31,28 @@ public class UpdaterRegion {
         return oBounds;
     }
 
+    public ShopLocationType getType() {
+        return type;
+    }
+
+    public String getExternalId() {
+        return externalId;
+    }
+
     public void setName(String name) {
         this.name = name;
     }
 
     public void setServer(String server) {
         this.server = server;
+    }
+
+    public void setType(ShopLocationType type) {
+        this.type = type;
+    }
+
+    public void setExternalId(String externalId) {
+        this.externalId = externalId;
     }
 
     public void setOwners(Set<String> owners) {

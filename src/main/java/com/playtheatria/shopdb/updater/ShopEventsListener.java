@@ -9,6 +9,7 @@ import com.Acrobot.ChestShop.Events.TransactionEvent;
 import com.Acrobot.ChestShop.Signs.ChestShopSign;
 import com.google.gson.Gson;
 import com.playtheatria.shopdb.models.EventType;
+import com.playtheatria.shopdb.models.ShopLocationType;
 import com.sk89q.worldedit.bukkit.BukkitAdapter;
 import com.sk89q.worldedit.math.BlockVector3;
 import com.sk89q.worldedit.world.World;
@@ -19,6 +20,7 @@ import com.sk89q.worldguard.protection.regions.ProtectedRegion;
 import com.sk89q.worldguard.protection.regions.RegionContainer;
 import org.bukkit.Bukkit;
 import org.bukkit.OfflinePlayer;
+import org.bukkit.Location;
 import org.bukkit.block.Sign;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
@@ -46,10 +48,16 @@ public class ShopEventsListener implements Listener {
     private static final Gson gson = new Gson();
     private final EventBuffer buffer;
     private final RegionManager regionManager;
+    private final PlayerShopResolver playerShops;
     private String server;
 
     public ShopEventsListener(EventBuffer buffer) {
+        this(buffer, PlayerShopResolver.unavailable());
+    }
+
+    public ShopEventsListener(EventBuffer buffer, PlayerShopResolver playerShops) {
         this.buffer = buffer;
+        this.playerShops = playerShops == null ? PlayerShopResolver.unavailable() : playerShops;
         org.bukkit.World bukkitWorld = getWorld();
 
         if (bukkitWorld == null) {
@@ -79,7 +87,7 @@ public class ShopEventsListener implements Listener {
         shopEvent.id = IDGenerator.generateID(event.getSign().getLocation());
         shopEvent.eventType = EventType.CREATE;
         shopEvent.world = event.getSign().getWorld().getName();
-        shopEvent.regions = gson.toJson(findRegions(event.getSign().getX(), event.getSign().getY(), event.getSign().getZ()));
+        shopEvent.regions = gson.toJson(findRegions(event.getSign().getLocation()));
         shopEvent.x = event.getSign().getX();
         shopEvent.y = event.getSign().getY();
         shopEvent.z = event.getSign().getZ();
@@ -148,7 +156,7 @@ public class ShopEventsListener implements Listener {
         shopEvent.id = IDGenerator.generateID(shopSign.getLocation());
         shopEvent.eventType = EventType.UPDATE;
         shopEvent.world = shopSign.getWorld().getName();
-        shopEvent.regions = gson.toJson(findRegions(shopSign.getX(), shopSign.getY(), shopSign.getZ()));
+        shopEvent.regions = gson.toJson(findRegions(shopSign.getLocation()));
         shopEvent.x = shopSign.getX();
         shopEvent.y = shopSign.getY();
         shopEvent.z = shopSign.getZ();
@@ -180,16 +188,18 @@ public class ShopEventsListener implements Listener {
         return parseEvent.getItem();
     }
 
-    private List<UpdaterRegion> findRegions(int x, int y, int z) {
+    private List<UpdaterRegion> findRegions(Location location) {
         List<UpdaterRegion> result = new ArrayList<>();
 
-        BlockVector3 vec = BlockVector3.at(x, y, z);
+        BlockVector3 vec = BlockVector3.at(location.getBlockX(), location.getBlockY(), location.getBlockZ());
         ApplicableRegionSet set = regionManager.getApplicableRegions(vec);
 
         for (ProtectedRegion region : set.getRegions()) {
             UpdaterRegion rg = new UpdaterRegion();
             rg.setName(region.getId());
             rg.setServer(this.server);
+            rg.setType(ShopLocationType.MARKET_STALL);
+            rg.setExternalId(region.getId());
             rg.setOwners(uuidsToPlayerNames(region.getOwners().getUniqueIds()));
             rg.getiBounds().setX(region.getMinimumPoint().getBlockX());
             rg.getiBounds().setY(region.getMinimumPoint().getBlockY());
@@ -198,6 +208,11 @@ public class ShopEventsListener implements Listener {
             rg.getoBounds().setY(region.getMaximumPoint().getBlockY());
             rg.getoBounds().setZ(region.getMaximumPoint().getBlockZ());
             result.add(rg);
+        }
+
+        PlayerShopClaim claim = playerShops.findClaim(location);
+        if (claim != null && claim.region() != null) {
+            result.add(claim.region());
         }
 
         return result;

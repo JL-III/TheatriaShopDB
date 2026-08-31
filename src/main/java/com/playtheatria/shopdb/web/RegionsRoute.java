@@ -12,6 +12,7 @@ import com.playtheatria.shopdb.models.RegionDto;
 import com.playtheatria.shopdb.models.RegionRequest;
 import com.playtheatria.shopdb.models.Server;
 import com.playtheatria.shopdb.models.SortBy;
+import com.playtheatria.shopdb.models.ShopLocationType;
 import com.playtheatria.shopdb.models.TradeType;
 import com.playtheatria.shopdb.services.ApiKeyValidator;
 import com.playtheatria.shopdb.services.ChestShopIngestService;
@@ -81,13 +82,14 @@ public class RegionsRoute implements RouteUtils.ThrowingHandler {
         Server server = Server.fromString(p.get("server"));
         String name = RouteUtils.stringParam(p, "name", "");
         SortBy sortBy = SortBy.fromString(RouteUtils.stringParam(p, "sortBy", "name"));
+        ShopLocationType type = locationType(p);
 
         RouteUtils.validatePaging(page, pageSize);
         String serverStr = Server.toString(server);
 
-        long total = regions.count(serverStr, name);
+        long total = regions.count(serverStr, name, type);
         List<RegionDto> results = new ArrayList<>();
-        for (RegionRow row : regions.page(serverStr, name, sortBy, pageSize, (page - 1) * pageSize)) {
+        for (RegionRow row : regions.page(serverStr, name, type, sortBy, pageSize, (page - 1) * pageSize)) {
             results.add(toRegionDto(row));
         }
         RouteUtils.sendJson(exchange, 200,
@@ -98,13 +100,14 @@ public class RegionsRoute implements RouteUtils.ThrowingHandler {
         logger.info("GET /region-names");
         Map<String, String> p = RouteUtils.queryParams(exchange);
         Server server = Server.fromString(p.get("server"));
-        RouteUtils.sendJson(exchange, 200, regions.names(Server.toString(server)));
+        RouteUtils.sendJson(exchange, 200, regions.names(Server.toString(server), locationType(p)));
     }
 
-    private RegionRow findOr404(String serverSeg, String nameSeg) throws SQLException {
+    private RegionRow findOr404(String serverSeg, String nameSeg, ShopLocationType type) throws SQLException {
         Server server = Server.fromString(serverSeg);
-        RegionRow region = server == null ? null : regions.findByServerEnumAndName(server.name(), nameSeg);
-        if (region == null) {
+        RegionRow region = server == null ? null
+                : regions.findByServerEnumTypeAndName(server.name(), type, nameSeg);
+        if (region == null || !Boolean.TRUE.equals(region.active)) {
             // The old handler formatted the enum, so the message shows 'THE_ARK'.
             throw new ApiException(404, String.format(REGION_NOT_FOUND, nameSeg,
                     server == null ? serverSeg : server.name()));
@@ -114,7 +117,8 @@ public class RegionsRoute implements RouteUtils.ThrowingHandler {
 
     private void region(HttpExchange exchange, String serverSeg, String nameSeg) throws Exception {
         logger.info("GET /regions/" + serverSeg + "/" + nameSeg);
-        RouteUtils.sendJson(exchange, 200, toRegionDto(findOr404(serverSeg, nameSeg)));
+        RouteUtils.sendJson(exchange, 200,
+                toRegionDto(findOr404(serverSeg, nameSeg, locationType(RouteUtils.queryParams(exchange)))));
     }
 
     private void regionPlayers(HttpExchange exchange, String serverSeg, String nameSeg) throws Exception {
@@ -124,7 +128,7 @@ public class RegionsRoute implements RouteUtils.ThrowingHandler {
         int pageSize = RouteUtils.intParam(p, "pageSize", 6);
         RouteUtils.validatePaging(page, pageSize);
 
-        RegionRow region = findOr404(serverSeg, nameSeg);
+        RegionRow region = findOr404(serverSeg, nameSeg, locationType(p));
 
         // Mirrors the old handler exactly: totalElements is the size of the current
         // page, not the full mayor list.
@@ -147,7 +151,7 @@ public class RegionsRoute implements RouteUtils.ThrowingHandler {
         TradeType tradeType = TradeType.fromString(RouteUtils.stringParam(p, "tradeType", "buy"));
         RouteUtils.validatePaging(page, pageSize);
 
-        RegionRow region = findOr404(serverSeg, nameSeg);
+        RegionRow region = findOr404(serverSeg, nameSeg, locationType(p));
 
         long total = shops.countInRegion(region.id, tradeType);
         List<ChestShopDto> results = new ArrayList<>();
@@ -176,5 +180,13 @@ public class RegionsRoute implements RouteUtils.ThrowingHandler {
 
     private RegionDto toRegionDto(RegionRow row) throws SQLException {
         return DtoMappers.toRegionDto(row, regions.numChestShops(row.id), regions.mayorNamesOf(row.id));
+    }
+
+    private ShopLocationType locationType(Map<String, String> params) {
+        String raw = params.get("type");
+        if (raw == null || raw.isBlank()) return ShopLocationType.MARKET_STALL;
+        ShopLocationType type = ShopLocationType.fromString(raw);
+        if (type == null) throw new ApiException(400, "Invalid shop location type: " + raw);
+        return type;
     }
 }

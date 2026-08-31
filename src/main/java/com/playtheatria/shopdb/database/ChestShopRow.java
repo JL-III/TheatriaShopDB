@@ -1,5 +1,7 @@
 package com.playtheatria.shopdb.database;
 
+import com.playtheatria.shopdb.models.ShopLocationType;
+
 public class ChestShopRow {
     public String id;
     public String server;
@@ -26,4 +28,5 @@ public class ChestShopRow {
     // Filled by the joined list queries; null otherwise.
     public String ownerName;
     public String townName;
+    public ShopLocationType townType;
 }
