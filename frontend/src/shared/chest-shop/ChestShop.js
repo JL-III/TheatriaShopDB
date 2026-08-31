@@ -3,6 +3,12 @@ import { Link } from 'react-router-dom';
 
 import { CopyButton } from '../copy-button';
 import { McText, prettyMaterial, prettyEnchant } from '../mc-text';
+import {
+  normalizeShopLocationType,
+  shopLocationPath,
+  travelButtonTextFor,
+  travelCommandFor,
+} from '../../shopLocationTypes';
 import './chest-shop.css';
 
 const moneyFormatter = new Intl.NumberFormat('en-US', {
@@ -13,6 +19,18 @@ const unitPriceFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2,
 });
+
+export const ITEMS_FOR_SALE_TAB = {
+  label: 'Items for Sale',
+  value: 'chest-shops-sold',
+  tradeType: 'buy',
+};
+
+export const ITEMS_BUYING_TAB = {
+  label: 'Items Buying',
+  value: 'chest-shops-bought',
+  tradeType: 'sell',
+};
 
 // Clean display name for a shop's item: the true material when the updater
 // captured it, otherwise the raw (possibly truncated) sign text.
@@ -84,6 +102,7 @@ export const ShopInfo = ({
   price,
   player,
   region,
+  regionType,
   server,
   isFull,
 }) => {
@@ -108,7 +127,7 @@ export const ShopInfo = ({
         </Link>{' '}
         • in{' '}
         <Link
-          to={`/search/regions/${server}/${region}`}
+          to={shopLocationPath(regionType, server, region)}
           className="link weight-bold"
         >
           {region}
@@ -137,7 +156,11 @@ export const ShopDescription = ({
   );
 };
 
-export const ChestShop = ({ chestShop, tradeType }) => {
+export const ChestShop = ({ chestShop, tradeType, locationType }) => {
+  const regionType = normalizeShopLocationType(
+    (chestShop.town && chestShop.town.type) || locationType
+  );
+
   return (
     <div className="chest-shop background-dark p-5 mt-3 mb-5">
       <div className="flex">
@@ -156,6 +179,7 @@ export const ChestShop = ({ chestShop, tradeType }) => {
           price={tradeType === 'buy' ? chestShop.buyPrice : chestShop.sellPrice}
           player={chestShop.owner.name}
           region={chestShop.town.name}
+          regionType={regionType}
           server={chestShop.server}
           isFull={chestShop.full}
         />
@@ -169,8 +193,12 @@ export const ChestShop = ({ chestShop, tradeType }) => {
         price={tradeType === 'buy' ? chestShop.buyPrice : chestShop.sellPrice}
       />
       <CopyButton
-        text="Copy Warp"
-        copyText={`/warp ${chestShop.town.name}`}
+        text={travelButtonTextFor(regionType)}
+        copyText={travelCommandFor(
+          regionType,
+          chestShop.town.name,
+          chestShop.town.travelCommand
+        )}
         className="ml-80 mt-2 txt-xs button-primary"
       />
       <CopyButton

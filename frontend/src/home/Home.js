@@ -9,7 +9,7 @@ const features = [
     eyebrow: 'Marketplace',
     title: 'Chest Shops',
     description:
-      'Search every listed buy and sell offer, then copy the coordinates and head in-game.',
+      'Search items for sale and items shops are buying, then copy the coordinates and head in-game.',
     action: 'Search shops',
     uri: '/search/chest-shops',
     image: '/img/theatria/chest-shops.jpg',
@@ -19,7 +19,7 @@ const features = [
     eyebrow: 'Guide',
     title: 'Documentation',
     description:
-      'Learn the search tools, listing details, and the small things that make ShopDB useful.',
+      'Learn the search tools, shop details, and the small things that make ShopDB useful.',
     action: 'Read the guide',
     uri: '/docs',
     image: '/img/theatria/documentation.jpg',
@@ -27,10 +27,10 @@ const features = [
   {
     slug: 'regions',
     eyebrow: 'Places',
-    title: 'Regions',
+    title: 'Shop Locations',
     description:
-      'See the towns and districts behind the shops, with every listing grouped by place.',
-    action: 'Explore regions',
+      'Browse market stalls at /market and shops on player-owned lands.',
+    action: 'Explore shop locations',
     uri: '/search/regions',
     image: '/img/theatria/regions.jpg',
   },
@@ -39,7 +39,7 @@ const features = [
     eyebrow: 'People',
     title: 'Players',
     description:
-      'Find a player, then browse the chest shops and listings they own.',
+      'Find a player, then browse the chest shops and shop locations they own.',
     action: 'Browse players',
     uri: '/search/players',
     image: '/img/theatria/players.jpg',
@@ -85,7 +85,7 @@ export const Home = () => {
               to='/search/regions'
               className='hero-button hero-button-secondary'
             >
-              Explore regions
+              Explore shop locations
             </Link>
           </div>
         </div>

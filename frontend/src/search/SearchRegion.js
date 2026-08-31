@@ -31,15 +31,33 @@ import { Loading } from '../shared/loading';
 import { TopPagination } from '../shared/top-pagination';
 import { Player } from '../shared/player';
 import { getBackgroundColor } from '../shared/region';
-import { ChestShop } from '../shared/chest-shop';
+import {
+  ChestShop,
+  ITEMS_BUYING_TAB,
+  ITEMS_FOR_SALE_TAB,
+} from '../shared/chest-shop';
 import { AlertError } from '../shared/alert-error';
+import { CopyButton } from '../shared/copy-button';
+import {
+  MARKET_STALL,
+  normalizeShopLocationType,
+  shopLocationLabel,
+  shopLocationListPath,
+  travelButtonTextFor,
+  travelCommandFor,
+} from '../shopLocationTypes';
 
-const RegionBreadcrumbs = ({ name, server }) => {
+const RegionBreadcrumbs = ({ name, server, type }) => {
   return (
     <Breadcrumbs>
       <Breadcrumb>
         <Link to="/search/regions" className="link-no-color">
-          Regions
+          Shop Locations
+        </Link>
+      </Breadcrumb>
+      <Breadcrumb>
+        <Link to={shopLocationListPath(type)} className="link-no-color">
+          {shopLocationLabel(type)}
         </Link>
       </Breadcrumb>
       <Breadcrumb>
@@ -69,11 +87,11 @@ const Coordinates = ({ iBounds, oBounds }) => {
   );
 };
 
-const LastUpdated = ({ lastUpdated }) => {
+const LastUpdated = ({ lastUpdated, type }) => {
   return (
     <div className="last-updated-block background-dark">
       <span className="block txt-sm weight-bold pl-4 pt-4 pb-3 border-bottom">
-        Region Last Updated
+        {shopLocationLabel(type, false)} Last Updated
       </span>
       <span className="block txt-sm pl-4 pt-2 pb-3">
         {getTimeFromNow(lastUpdated)}
@@ -82,7 +100,7 @@ const LastUpdated = ({ lastUpdated }) => {
   );
 };
 
-const RegionInfo = ({ name, server, active, numMayors, numChestShops }) => {
+const RegionInfo = ({ name, server, numChestShops, type, travelCommand }) => {
   return (
     <div className="pt-50 pb-50 background flex">
       <StoreIcon
@@ -94,34 +112,31 @@ const RegionInfo = ({ name, server, active, numMayors, numChestShops }) => {
         <h2 className="txt-md weight-lite pb-1">
           {name} <span className="italic">({server})</span>
         </h2>
-        <p className={`pb-2 ${active ? 'color-green' : 'color-error'}`}>
-          {active ? 'Listed - chest shops in this region are shown.' : 'Unlisted - chest shops in this region are hidden.'}
-        </p>
         <p className="pb-1">
-          Has{' '}
-          <span className="weight-bold">
-            {numMayors === 0 ? 'no' : numMayors}{' '}
-            {numMayors === 1 ? 'owner' : 'owners'}{' '}
-          </span>{' '}
-          and{' '}
+          {name} has{' '}
           <span className="weight-bold">
             {numChestShops === 0 ? 'no' : numChestShops}{' '}
             {numChestShops === 1 ? 'chest shop.' : 'chest shops.'}
           </span>
         </p>
+        <CopyButton
+          text={travelButtonTextFor(type)}
+          copyText={travelCommandFor(type, name, travelCommand)}
+          className="mt-2 txt-xs button-primary"
+        />
       </div>
     </div>
   );
 };
 
-const RegionChestShops = ({ name, server, tradeType }) => {
+const RegionChestShops = ({ name, server, type, tradeType }) => {
   const dispatch = useDispatch();
   const chestShops = useSelector(getRegionChestShops);
   const page = chestShops.page;
 
   useEffect(() => {
-    dispatch(fetchRegionChestShops(name, server, tradeType));
-  }, [dispatch, name, server, tradeType, page]);
+    dispatch(fetchRegionChestShops(name, server, type, tradeType));
+  }, [dispatch, name, server, type, tradeType, page]);
 
   useEffect(() => {
     return () => dispatch(resetChestShopsPage());
@@ -143,7 +158,7 @@ const RegionChestShops = ({ name, server, tradeType }) => {
             errorMessage={chestShops.errorMessage}
             className="mt-3"
             retry={() =>
-              dispatch(fetchRegionChestShops(name, server, tradeType))
+              dispatch(fetchRegionChestShops(name, server, type, tradeType))
             }
           />
         )}
@@ -154,6 +169,7 @@ const RegionChestShops = ({ name, server, tradeType }) => {
             <ChestShop
               chestShop={chestShop}
               tradeType={tradeType}
+              locationType={type}
               key={chestShop.id}
             />
           ))}
@@ -162,14 +178,14 @@ const RegionChestShops = ({ name, server, tradeType }) => {
   );
 };
 
-const RegionPlayers = ({ name, server }) => {
+const RegionPlayers = ({ name, server, type }) => {
   const dispatch = useDispatch();
   const players = useSelector(getRegionPlayers);
   const page = players.page;
 
   useEffect(() => {
-    dispatch(fetchRegionPlayers(name, server));
-  }, [dispatch, name, server, page]);
+    dispatch(fetchRegionPlayers(name, server, type));
+  }, [dispatch, name, server, type, page]);
 
   useEffect(() => {
     return () => dispatch(resetPlayersPage());
@@ -189,7 +205,7 @@ const RegionPlayers = ({ name, server }) => {
           <AlertError
             errorMessage={players.errorMessage}
             className="mt-3"
-            retry={() => dispatch(fetchRegionPlayers(name, server))}
+            retry={() => dispatch(fetchRegionPlayers(name, server, type))}
           />
         )}
         {players.loading && <Loading className="w-100 mt-2" />}
@@ -204,7 +220,8 @@ const RegionPlayers = ({ name, server }) => {
 
 const SearchRegion = () => {
   const dispatch = useDispatch();
-  const { name, server } = useParams();
+  const { name, server, type: routeType } = useParams();
+  const type = normalizeShopLocationType(routeType);
   const loading = useSelector(getLoading);
   const region = useSelector(getRegion);
   const error = useSelector(getError);
@@ -213,12 +230,12 @@ const SearchRegion = () => {
   const [page, setPage] = useState('mayors');
 
   useEffect(() => {
-    dispatch(fetchRegion(name, server));
-  }, [dispatch, name, server]);
+    dispatch(fetchRegion(name, server, type));
+  }, [dispatch, name, server, type]);
 
   return (
     <>
-      <RegionBreadcrumbs name={name} server={server} />
+      <RegionBreadcrumbs name={name} server={server} type={type} />
       <div
         id="region"
         className={
@@ -232,19 +249,21 @@ const SearchRegion = () => {
         <div className="pt-3 pb-3 container flex flex-between flex-center">
           {region && (
             <RegionInfo
-              active={region.active}
               name={region.name}
               numChestShops={region.numChestShops}
-              numMayors={region.mayors.length}
               server={region.server}
+              type={type}
+              travelCommand={region.travelCommand}
             />
           )}
 
           {region && (
             <div>
-              <Coordinates iBounds={region.iBounds} oBounds={region.oBounds} />
+              {type === MARKET_STALL && region.iBounds && region.oBounds && (
+                <Coordinates iBounds={region.iBounds} oBounds={region.oBounds} />
+              )}
               {region.lastUpdated && (
-                <LastUpdated lastUpdated={region.lastUpdated} />
+                <LastUpdated lastUpdated={region.lastUpdated} type={type} />
               )}
             </div>
           )}
@@ -253,7 +272,7 @@ const SearchRegion = () => {
             <AlertError
               errorMessage={errorMessage}
               className="mt-3"
-              retry={() => dispatch(fetchRegion(name, server))}
+              retry={() => dispatch(fetchRegion(name, server, type))}
             />
           )}
         </div>
@@ -266,23 +285,35 @@ const SearchRegion = () => {
                 onChange={(event, newChange) => setPage(newChange)}
               >
                 <Tab label="Owners" value="mayors" />
-                <Tab label="Items sold" value="chest-shops-sold" />
-                <Tab label="Items purchased" value="chest-shops-bought" />
+                <Tab
+                  label={ITEMS_FOR_SALE_TAB.label}
+                  value={ITEMS_FOR_SALE_TAB.value}
+                />
+                <Tab
+                  label={ITEMS_BUYING_TAB.label}
+                  value={ITEMS_BUYING_TAB.value}
+                />
               </TabList>
 
               <TabPanel value="mayors">
-                <RegionPlayers name={name} server={server} />
+                <RegionPlayers name={name} server={server} type={type} />
               </TabPanel>
 
-              <TabPanel value="chest-shops-sold">
-                <RegionChestShops name={name} server={server} tradeType="buy" />
-              </TabPanel>
-
-              <TabPanel value="chest-shops-bought">
+              <TabPanel value={ITEMS_FOR_SALE_TAB.value}>
                 <RegionChestShops
                   name={name}
                   server={server}
-                  tradeType="sell"
+                  type={type}
+                  tradeType={ITEMS_FOR_SALE_TAB.tradeType}
+                />
+              </TabPanel>
+
+              <TabPanel value={ITEMS_BUYING_TAB.value}>
+                <RegionChestShops
+                  name={name}
+                  server={server}
+                  type={type}
+                  tradeType={ITEMS_BUYING_TAB.tradeType}
                 />
               </TabPanel>
             </Paper>

@@ -3,6 +3,12 @@ import { Link } from 'react-router-dom';
 import StoreIcon from '@material-ui/icons/Store';
 
 import { CopyButton } from '../copy-button';
+import {
+  shopLocationPath,
+  shopLocationTypeOf,
+  travelButtonTextFor,
+  travelCommandFor,
+} from '../../shopLocationTypes';
 import './region.css';
 
 export const getBackgroundColor = (regionName) => {
@@ -47,47 +53,38 @@ export const Mayors = ({ names }) => {
   });
 };
 
-export const RegionDescription = ({
-  name,
-  numMayors,
-  numChestShops,
-  active,
-  server,
-}) => {
+export const RegionDescription = ({ name, numChestShops }) => {
   return (
     <span className="ml-80 block pb-4 txt-sm">
-      {name} is a town on {server.toLowerCase()} with{' '}
-      {numMayors === 0 ? 'no' : numMayors}{' '}
-      {numMayors === 1 ? 'owner' : 'owners'} and{' '}
+      {name} has{' '}
       {numChestShops === 0 ? 'no' : numChestShops}{' '}
       {numChestShops === 1 ? 'chest shop.' : 'chest shops.'}
     </span>
   );
 };
 
-export const RegionInfo = ({ name, server, mayors, active }) => {
+export const RegionInfo = ({ name, server, mayors, type }) => {
   return (
     <div>
-      <Link to={`/search/regions/${server}/${name}`} className="link-no-color">
+      <Link to={shopLocationPath(type, server, name)} className="link-no-color">
         <span className="block txt-sm weight-bold">{name}</span>
       </Link>
 
       <span className="block txt-sm weight-lite">
         Owners: <Mayors names={mayors} />
       </span>
-
-      <span className={`block txt-sm weight-lite pb-3 weight-bold ${active ? 'color-green' : 'color-error'}`}>
-        {active ? 'Listed' : 'Unlisted'}
-      </span>
     </div>
   );
 };
 
 export const Region = ({ region }) => {
+  const type = shopLocationTypeOf(region);
+  const path = shopLocationPath(type, region.server, region.name);
+
   return (
     <div className="region background-dark p-5 mt-3 mb-3">
       <div className="flex">
-        <Link to={`/search/regions/${region.name}`}>
+        <Link to={path}>
           <StoreIcon
             fontSize="inherit"
             className={getBackgroundColor(region.name)}
@@ -96,20 +93,17 @@ export const Region = ({ region }) => {
         <RegionInfo
           name={region.name}
           server={region.server}
-          mayors={region.mayors.map(m => m.name)}
-          active={region.active}
+          mayors={(region.mayors || []).map(m => m.name)}
+          type={type}
         />
       </div>
       <RegionDescription
         name={region.name}
-        numMayors={region.mayors.length}
         numChestShops={region.numChestShops}
-        active={region.active}
-        server={region.server}
       />
       <CopyButton
-        text="Copy Warp"
-        copyText={`/warp ${region.name}`}
+        text={travelButtonTextFor(type)}
+        copyText={travelCommandFor(type, region.name, region.travelCommand)}
         className="ml-80 mt-2 txt-xs button-primary"
       />
     </div>

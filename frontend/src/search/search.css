@@ -42,7 +42,7 @@
 }
 
 #region {
-  --search-page-art: url('../assets/theatria/pages/region-detail.jpg');
+  --search-page-art: url('../assets/theatria/pages/region-detail.png');
   --search-page-art-position: 48% 25%;
 }
 
@@ -103,6 +103,25 @@
   background-color: rgba(14, 14, 23, 0.82);
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
   backdrop-filter: blur(10px);
+}
+
+#regions .shop-locations-intro {
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.75);
+}
+
+#regions .shop-location-tabs {
+  max-width: 1140px;
+  margin: 0 auto 28px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background-color: rgba(14, 14, 23, 0.88);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.22);
+  color: rgba(255, 255, 255, 1);
+  backdrop-filter: blur(10px);
+}
+
+#regions .shop-location-tabs .MuiTabs-indicator {
+  height: 3px;
+  background-color: #f85102;
 }
 
 #chest-shops #filters,

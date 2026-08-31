@@ -39,6 +39,11 @@ function App() {
           <SearchPlayer />
         </Route>
 
+        <Route exact path="/search/regions/:type/:server/:name">
+          <Navbar selectedPage="regions" />
+          <SearchRegion />
+        </Route>
+
         <Route exact path="/search/regions/:server/:name">
           <Navbar selectedPage="regions" />
           <SearchRegion />

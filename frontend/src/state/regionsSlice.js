@@ -1,11 +1,13 @@
 import { BACKEND } from '../backend';
 import { createSlice } from '@reduxjs/toolkit';
 import { parseResponse } from '../api';
+import { MARKET_STALL, normalizeShopLocationType } from '../shopLocationTypes';
 
 export const regionsSlice = createSlice({
   name: 'regions',
   initialState: {
     options: {
+      type: MARKET_STALL,
       server: 'all',
       name: undefined,
       page: 1,
@@ -26,6 +28,12 @@ export const regionsSlice = createSlice({
   },
 
   reducers: {
+    setType: (state, action) => {
+      state.options.type = normalizeShopLocationType(action.payload);
+      state.options.name = undefined;
+      state.options.page = 1;
+      state.names.results = [];
+    },
     setServer: (state, action) => {
       state.options.server = action.payload;
       state.options.page = 1;
@@ -87,6 +95,7 @@ export const regionsSlice = createSlice({
 });
 
 export const {
+  setType,
   setServer,
   setName,
   setSortBy,
@@ -116,6 +125,7 @@ export const fetchRegions = () => (dispatch, getState) => {
   const url = new URL(`${BACKEND}/regions`);
 
   url.searchParams.append('page', options.page);
+  url.searchParams.append('type', options.type);
 
   if (options.server !== 'all') {
     url.searchParams.append('server', options.server);
@@ -157,6 +167,8 @@ export const fetchRegionNames = () => (dispatch, getState) => {
   dispatch(loadingNames());
 
   const url = new URL(`${BACKEND}/regions/region-names`);
+
+  url.searchParams.append('type', options.type);
 
   if (options.server !== 'all') url.searchParams.append('server', options.server);
 

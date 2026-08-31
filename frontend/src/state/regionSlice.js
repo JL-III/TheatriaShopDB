@@ -1,6 +1,7 @@
 import { BACKEND } from '../backend';
 import { createSlice } from '@reduxjs/toolkit';
 import { parseResponse } from '../api';
+import { normalizeShopLocationType } from '../shopLocationTypes';
 
 export const regionSlice = createSlice({
   name: 'region',
@@ -139,10 +140,18 @@ export const getErrorMessage = (state) => state.region.errorMessage;
 export const getRegionPlayers = (state) => state.region.players;
 export const getRegionChestShops = (state) => state.region.chestShops;
 
-export const fetchRegion = (name, server) => (dispatch) => {
+const regionUrl = (name, server, type, suffix = '') => {
+  const url = new URL(
+    `${BACKEND}/regions/${encodeURIComponent(server)}/${encodeURIComponent(name)}${suffix}`
+  );
+  url.searchParams.append('type', normalizeShopLocationType(type));
+  return url;
+};
+
+export const fetchRegion = (name, server, type) => (dispatch) => {
   dispatch(loading());
 
-  fetch(`${BACKEND}/regions/${server}/${name}`)
+  fetch(regionUrl(name, server, type))
     .then(parseResponse)
     .then((response) => {
       dispatch(loaded(response));
@@ -158,14 +167,15 @@ export const fetchRegion = (name, server) => (dispatch) => {
     });
 };
 
-export const fetchRegionPlayers = (name, server) => (dispatch, getState) => {
+export const fetchRegionPlayers = (name, server, type) => (dispatch, getState) => {
   const page = getState().region.players.page;
 
   dispatch(playersLoading());
 
-  fetch(
-    `${BACKEND}/regions/${server}/${name}/players?page=${page}`
-  )
+  const url = regionUrl(name, server, type, '/players');
+  url.searchParams.append('page', page);
+
+  fetch(url)
     .then(parseResponse)
     .then((response) => {
       dispatch(
@@ -187,7 +197,7 @@ export const fetchRegionPlayers = (name, server) => (dispatch, getState) => {
     });
 };
 
-export const fetchRegionChestShops = (name, server, tradeType) => (
+export const fetchRegionChestShops = (name, server, type, tradeType) => (
   dispatch,
   getState
 ) => {
@@ -195,9 +205,11 @@ export const fetchRegionChestShops = (name, server, tradeType) => (
 
   dispatch(chestShopsLoading());
 
-  fetch(
-    `${BACKEND}/regions/${server}/${name}/chest-shops?page=${page}&tradeType=${tradeType}`
-  )
+  const url = regionUrl(name, server, type, '/chest-shops');
+  url.searchParams.append('page', page);
+  url.searchParams.append('tradeType', tradeType);
+
+  fetch(url)
     .then(parseResponse)
     .then((response) => {
       dispatch(

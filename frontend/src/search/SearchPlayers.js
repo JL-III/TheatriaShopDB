@@ -14,7 +14,7 @@ const SearchPlayers = () => {
   const sortByOptions = [
     { value: 'name', label: 'Name' },
     { value: 'num-chest-shops', label: 'Chest Shop Count'},
-    { value: 'num-regions', label: 'Town Count'}
+    { value: 'num-regions', label: 'Shop Location Count'}
   ]
 
   return (

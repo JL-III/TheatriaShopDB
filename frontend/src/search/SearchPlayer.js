@@ -29,7 +29,11 @@ import { Breadcrumbs, Breadcrumb } from '../shared/breadcrumbs';
 import { Loading } from '../shared/loading';
 import { TopPagination } from '../shared/top-pagination';
 import { Region } from '../shared/region';
-import { ChestShop } from '../shared/chest-shop';
+import {
+  ChestShop,
+  ITEMS_BUYING_TAB,
+  ITEMS_FOR_SALE_TAB,
+} from '../shared/chest-shop';
 import { AlertError } from '../shared/alert-error';
 
 const PlayerBreadcrumbs = ({ name }) => {
@@ -75,7 +79,7 @@ const PlayerInfo = ({ name, numTowns, numChestShops }) => {
           Owns{' '}
           <span className="weight-bold">
             {numTowns === 0 ? 'no' : numTowns}{' '}
-            {numTowns === 1 ? 'town' : 'towns'}{' '}
+            {numTowns === 1 ? 'shop location' : 'shop locations'}{' '}
           </span>
           and{' '}
           <span className="weight-bold">
@@ -134,7 +138,7 @@ const PlayerChestShops = ({ name, tradeType }) => {
   );
 };
 
-const PlayerTowns = ({ name }) => {
+const PlayerLocations = ({ name }) => {
   const dispatch = useDispatch();
   const regions = useSelector(getPlayerRegions);
   const page = regions.page;
@@ -154,7 +158,7 @@ const PlayerTowns = ({ name }) => {
           page={page}
           setPage={(e, page) => dispatch(setRegionsPage(page + 1))}
           count={regions.totalResults}
-          labelTextEnd="towns."
+          labelTextEnd="shop locations."
           loading={regions.loading}
         />
         {regions.error && (
@@ -167,7 +171,10 @@ const PlayerTowns = ({ name }) => {
         {regions.loading && <Loading className="w-100 mt-2" />}
         {regions.results &&
           regions.results.map((region) => (
-            <Region region={region} key={region.id} />
+            <Region
+              region={region}
+              key={region.externalId || `${region.type}-${region.server}-${region.name}`}
+            />
           ))}
       </div>
     </div>
@@ -226,21 +233,33 @@ const SearchPlayer = () => {
                 centered
                 onChange={(event, newChange) => setPage(newChange)}
               >
-                <Tab label="Towns" value="towns" />
-                <Tab label="Items sold" value="chest-shops-sold" />
-                <Tab label="Items purchased" value="chest-shops-bought" />
+                <Tab label="Shop Locations" value="towns" />
+                <Tab
+                  label={ITEMS_FOR_SALE_TAB.label}
+                  value={ITEMS_FOR_SALE_TAB.value}
+                />
+                <Tab
+                  label={ITEMS_BUYING_TAB.label}
+                  value={ITEMS_BUYING_TAB.value}
+                />
               </TabList>
 
               <TabPanel value="towns">
-                <PlayerTowns name={name} />
+                <PlayerLocations name={name} />
               </TabPanel>
 
-              <TabPanel value="chest-shops-sold">
-                <PlayerChestShops name={name} tradeType="buy" />
+              <TabPanel value={ITEMS_FOR_SALE_TAB.value}>
+                <PlayerChestShops
+                  name={name}
+                  tradeType={ITEMS_FOR_SALE_TAB.tradeType}
+                />
               </TabPanel>
 
-              <TabPanel value="chest-shops-bought">
-                <PlayerChestShops name={name} tradeType="sell" />
+              <TabPanel value={ITEMS_BUYING_TAB.value}>
+                <PlayerChestShops
+                  name={name}
+                  tradeType={ITEMS_BUYING_TAB.tradeType}
+                />
               </TabPanel>
             </Paper>
           </TabContext>

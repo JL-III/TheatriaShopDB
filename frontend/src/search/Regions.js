@@ -21,6 +21,7 @@ import { BottomPagination } from '../shared/bottom-pagination';
 import { Loading } from '../shared/loading';
 import { AlertError } from '../shared/alert-error';
 import { Region } from '../shared/region';
+import { PLAYER_SHOP } from '../shopLocationTypes';
 
 const Regions = () => {
   const dispatch = useDispatch();
@@ -33,6 +34,7 @@ const Regions = () => {
   const errorMessage = useSelector(getErrorMessage);
   const loading = useSelector(getLoading);
   const names = useSelector(getRegionNames);
+  const playerShops = options.type === PLAYER_SHOP;
 
   useEffect(() => {
     dispatch(fetchRegions());
@@ -45,13 +47,13 @@ const Regions = () => {
           page={options.page}
           setPage={(e, page) => dispatch(setPage(page + 1))}
           count={totalResults}
-          labelTextEnd="regions."
+          labelTextEnd={playerShops ? 'player shops.' : 'market stalls.'}
           loading={loading}
         />
 
         <Select
           className="name-selector"
-          placeHolder="Region Name..."
+          placeHolder={playerShops ? 'Player Shop Name...' : 'Market Stall Name...'}
           onFocus={() => dispatch(fetchRegionNames())}
           value={options.name}
           setValue={(e, v) => dispatch(setName(e))}
@@ -73,7 +75,12 @@ const Regions = () => {
       )}
 
       {results &&
-        results.map((region) => <Region region={region} key={region.id} />)}
+        results.map((region) => (
+          <Region
+            region={region}
+            key={region.externalId || `${region.type}-${region.server}-${region.name}`}
+          />
+        ))}
 
       {results.length !== 0 && (
         <BottomPagination

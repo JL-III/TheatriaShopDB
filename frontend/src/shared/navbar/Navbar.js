@@ -25,7 +25,7 @@ export const Navbar = ({ selectedPage }) => {
             />
             <NavItem
                 uri='/search/regions'
-                text='Regions'
+                text='Shop Locations'
                 selected={selectedPage === 'regions'}
             />
             <NavItem
@@ -61,7 +61,7 @@ export const Navbar = ({ selectedPage }) => {
                 />
                 <NavItem
                     uri='/search/regions'
-                    text='Regions'
+                    text='Shop Locations'
                     selected={selectedPage === 'regions'}
                 />
                 <NavItem

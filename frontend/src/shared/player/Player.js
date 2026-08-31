@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-import { getTimeFromNow } from '../../api';
+import { shopLocationPath, shopLocationTypeOf } from '../../shopLocationTypes';
 import './player.css';
 
 export const Towns = ({ towns }) => {
@@ -15,7 +15,7 @@ export const Towns = ({ towns }) => {
     return (
       <span className='towns' key={idx}>
         <Link
-          to={`/search/regions/${town.server}/${town.name}`}
+          to={shopLocationPath(shopLocationTypeOf(town), town.server, town.name)}
           className='link weight-bold'
         >
           {town.name}
@@ -31,7 +31,8 @@ export const PlayerDescription = ({ name, numChestShops, numTowns }) => {
   return (
     <span className='ml-80 block txt-sm'>
       {name}{' '}
-      owns {numTowns === undefined || numTowns === 0 ? 'no' : numTowns} {numTowns === 1 ? 'town' : 'towns'} and{' '}
+      owns {numTowns === undefined || numTowns === 0 ? 'no' : numTowns}{' '}
+      {numTowns === 1 ? 'shop location' : 'shop locations'} and{' '}
       {numChestShops === 0 ? 'no' : numChestShops}{' '}
       {numChestShops === 1 ? 'chest shop.' : 'chest shops.'}
     </span>
@@ -46,7 +47,7 @@ export const PlayerInfo = ({ name, towns }) => {
       </Link>
 
       <span className='block txt-sm weight-lite'>
-        Towns: <Towns towns={towns} />
+        Shop Locations: <Towns towns={towns} />
       </span>
     </div>
   );

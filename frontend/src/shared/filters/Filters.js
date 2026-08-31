@@ -18,8 +18,8 @@ export const TradeTypeFilter = ({ value, setValue }) => {
   return (
     <Filter title='Trade Type'>
       <RadioGroup value={value} onChange={setValue}>
-        <FormControlLabel value='buy' control={<Radio />} label='Buy' />
-        <FormControlLabel value='sell' control={<Radio />} label='Sell' />
+        <FormControlLabel value='buy' control={<Radio />} label='Shops Selling' />
+        <FormControlLabel value='sell' control={<Radio />} label='Shops Buying' />
       </RadioGroup>
     </Filter>
   );
