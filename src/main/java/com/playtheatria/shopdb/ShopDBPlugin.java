@@ -138,12 +138,11 @@ public final class ShopDBPlugin extends JavaPlugin {
         try {
             UpdaterConfig config = new UpdaterConfig(true,
                     getConfig().getInt("updater.interval-minutes", 10),
-                    getConfig().getInt("updater.cache-size", 1000),
                     "http://127.0.0.1:" + port + "/api/v3/",
                     apiKey,
                     getConfig().getBoolean("updater.log-http", true));
 
-            eventBuffer = new EventBuffer(new File(getDataFolder(), "shop_events.db"), config.cacheSize, getLogger());
+            eventBuffer = new EventBuffer(new File(getDataFolder(), "shop_events.db"), getLogger());
             ShopDBClient client = new ShopDBClient(config, getLogger());
 
             PlayerShopResolver playerShops = PlayerShopResolver.unavailable();

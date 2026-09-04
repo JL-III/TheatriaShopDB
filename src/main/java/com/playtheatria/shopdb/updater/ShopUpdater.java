@@ -111,9 +111,10 @@ public class ShopUpdater {
 
             int responseCode = client.sendData(gson.toJson(dtos), "chest-shops", "POST");
 
-            // Only clear the buffer once ShopDB confirms; failures re-send next cycle.
+            // Only acknowledge the uploaded revisions once ShopDB confirms;
+            // events written while this request was in flight must survive.
             if (responseCode >= 200 && responseCode < 300) {
-                buffer.truncate();
+                buffer.acknowledge(shopEvents);
             }
         } catch (Exception e) {
             logger.warning("Failed to submit data to ShopDB: " + e.getMessage());

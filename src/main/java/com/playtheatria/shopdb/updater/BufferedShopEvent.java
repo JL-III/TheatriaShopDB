@@ -56,4 +56,8 @@ public class BufferedShopEvent {
 
     @DatabaseField
     public String itemDetails; // JSON of ItemDetailsDto, null when the item has none
+
+    /** Changes on every buffered write so an older upload cannot acknowledge a newer event. */
+    @DatabaseField
+    public String bufferRevision;
 }
